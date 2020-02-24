@@ -27,14 +27,14 @@ Y_val <- scale( prostate$lpsa[val.sample], center=TRUE, scale=FALSE) ## center b
 X_val <- scale( as.matrix(prostate[val.sample,1:8]), center=TRUE, scale=TRUE)
 
 #predictors
-p <- dim(X)[2]
+p <- dim(X_t)[2]
 
-XtX <- t(X)%*%X 
+XtX <- t(X_t)%*%X_t 
 d2 <- eigen(XtX,symmetric = TRUE, only.values = TRUE)$values #eigenvalues of xtx
 
 (cond.number <- sqrt(max(d2)/min(d2)))
 
-lambda.max = 1e4
+lambda.max = 2e4
 n_lambdas <- 25 ## look at 25 different values
 lambda.v <- exp(seq(0,log(lambda.max+1),length=n_lambdas))-1 #lambda vector
 
@@ -42,36 +42,76 @@ n_val <- length(Y_val)
 ```
 
 ```{r, eval = FALSE}
-#make m_hat
-
-beta.path <- matrix(0,nrow=n.lambdas, ncol=p) ##making an empthy matrix
-
-PMSE_vec <- vector("numeric", length = n.lambdas)
-for(l in 1:n_lambdas){
-  lambda <- lambda.v[l]
-  beta_hat <- solve(XtX + lambda*diag(1,p)) %*% t(X) %*% Y_t
-  #y_hat = X %*% beta_hat
-  m_hat_vec <- vector("numeric", length = n_val)
-  
-  for (n in 1:n_val){
-    m_hat_vec[n] <- (Y_val[n]-(X_val[n,]%*%beta_hat))^2
-  }
-  PMSE_vec[l]<- sum(m_hat_vec)/n_val
-  
-}
 
 
 
-lambda.CV <- lambda.v[which.min(PMSE_vec)]
-plot(log(1+lambda.v), PMSE_vec)
-abline(v=log(1+lambda.CV),col=2,lty=2)
 ```
 
 
 ```{r, eval = FALSE}
-PMSE_vs <- function(x_t, y_t, x_val, y_val, lambda){
+PMSE_vs <- function(X_t, Y_t, X_val, Y_val, lambda){
+  p <- dim(X_t)[2]
+  n_lambdas <- length(lambda)
+
+  XtX <- t(X_t)%*%X_t 
   
+  PMSE_vec <- vector("numeric", length = n_lambdas)
+  for(l in 1:n_lambdas){
+    lambda <- lambda.v[l]
+    beta_hat <- solve(XtX + lambda*diag(1,p)) %*% t(X_t) %*% Y_t
+    #y_hat = X %*% beta_hat
+    m_hat_vec <- vector("numeric", length = n_val)
+    
+    for (n in 1:n_val){
+      m_hat_vec[n] <- (Y_val[n]-(X_val[n,]%*%beta_hat))^2
+    }
+    PMSE_vec[l]<- sum(m_hat_vec)/n_val
+    
+  }
+  return (PMSE_vec)
 }
+```
+
+
+```{r}
+PMSE_vec_test <- PMSE_vs(X_t, Y_t, X_val, Y_val, lambda.v)
+
+lambda.CV <- lambda.v[which.min(PMSE_vec_test)]
+plot(log(1+lambda.v), PMSE_vec_test)
+abline(v=log(1+lambda.CV),col=2,lty=2)
+
+```
+
+
+##Task 2
+
+```{r}
+X_t_shuffel <- X_t[sample(nrow(X_t)),]
+
+
+k = 10
+
+is.matrix(X_t_shuffel)
+
+#Assume we can delete the last ? values
+length(X_t_shuffel)
+n_subset = as.integer(length(X_t_shuffel)/k)
+n_subset
+
+k_subsets_matrix <- matrix(0, nrow=k, ncol = n_subset)
+
+c = 1
+for (i in 1:k){
+  for (j in 1:n_subset){
+    k_subsets_k <- X_t_shuffel[(n_subset*(i-1)+1):(n_subset*i)]
+    c<- c + 1
+  }
+}
+
+k_subsets_matrix
+
+    
+
 ```
 
 
