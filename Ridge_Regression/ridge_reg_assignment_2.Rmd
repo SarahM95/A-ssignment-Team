@@ -54,6 +54,7 @@ PMSE_vs <- function(X_t, Y_t, X_val, Y_val, lambda){
   n_lambdas <- length(lambda)
 
   XtX <- t(X_t)%*%X_t 
+
   
   PMSE_vec <- vector("numeric", length = n_lambdas)
   for(l in 1:n_lambdas){
@@ -111,6 +112,75 @@ for (i in 1:k){
 k_subsets_matrix
 
     
+
+```
+```{r}
+#Different aproach
+
+k=10
+n_X_t <- dim(X_t)[1]
+n_subset <- as.integer((n_X_t)/k)+ 1
+group <- rep(seq(1,k), times = n_subset)
+group <- group[1:n_X_t]
+
+group_random <- sample(group)
+
+X_t_group <- cbind(X_t, group_random)
+Y_t_group <- cbind(Y_t, group_random)
+
+
+#now we can start:
+
+nex_X_t_val <- subset.matrix(X_t_group, group_random==1)
+new_X_t_test <- subset.matrix(X_t_group, group_random!=1)
+
+nex_Y_t_val <- subset.matrix(Y_t_group, group_random==1)
+new_Y_t_test <- subset.matrix(Y_t_group, group_random!=1)
+
+p_new <- dim(new_X_t_test)[2]
+beta.i <- solve(t(new_X_t_test)%*%new_X_t_test + 1*diag(1,p_new)) %*% t(new_X_t_test) %*%new_Y_t_test
+beta.i
+for (k in 1:k){
+  nex_X_t_val <- subset.matrix(X_t_group, group_random==k)
+  new_X_t_test <- subset.matrix(X_t_group, group_random!=k)
+  
+  nex_Y_t_val <- subset.matrix(Y_t_group, group_random==k)
+  new_Y_t_test <- subset.matrix(Y_t_group, group_random!=k)
+  
+  lambda <- lambda.v[1]
+  PMSE <- 0
+  for (i in 1:k){ #considder al possible data
+    #m.Y.i <- mean(Y[-i]) ##use this for unscaled data
+    m.Y.i <- 0 ##if the data is scaled use this
+    X.i <- X[-i,]; Y.i <- Y[-i]-m.Y.i #take out the ith observetion
+    Xi <- X[i,]; Yi <- Y[i]
+    beta.i <- solve(t(X.i)%*%X.i + lambda_v[1]*diag(1,p)) %*% t(X.i) %*% Y.i #compute beta 
+    hat.Yi <- Xi %*% beta.i + m.Y.i #compute hat
+    PMSE.CV[l] <- PMSE.CV[l] + (hat.Yi-Yi)^2
+  }
+  PMSE.CV[l] <- PMSE.CV[l]/n
+}
+  XtX_new <- t(new_X_t_test)%*%new_X_t_test 
+
+  
+  PMSE_vec <- vector("numeric", length = n_lambdas)
+  for(l in 1:n_lambdas){
+    lambda <- lambda.v[l]
+    beta_hat <- solve(XtX + lambda*diag(1,p)) %*% t(X_t) %*% Y_t
+    #y_hat = X %*% beta_hat
+    m_hat_vec <- vector("numeric", length = n_val)
+    
+    for (n in 1:n_val){
+      m_hat_vec[n] <- (Y_val[n]-(X_val[n,]%*%beta_hat))^2
+    }
+    PMSE_vec[l]<- sum(m_hat_vec)/n_val
+    
+  }
+
+
+
+
+
 
 ```
 
