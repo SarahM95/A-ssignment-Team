@@ -125,6 +125,7 @@ Y_t_group <- cbind(Y_t, group_random)
 
 
 #now we can start:
+PMSE <- list()
 
 for (la in 1:n_lambdas){
   
@@ -161,11 +162,12 @@ for (la in 1:n_lambdas){
   h <- c(do.call(rbind, h))
   y <- c(do.call(rbind, y))
   
-  PMSE <- 1/n_X_t * sum(((y-y_hat)/(1-h))^2)
+  PMSE[[la]] <- 1/n_X_t * sum(((y-y_hat)/(1-h))^2)
   #PMSE_vec[l]<- #sum(m_hat_vec)/n_val #not this but something
 }    
-
 PMSE
+
+plot((log(lambda.v[-1]+1)), PMSE[-1])
 ```
 
 
