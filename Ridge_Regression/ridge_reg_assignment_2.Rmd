@@ -9,6 +9,8 @@ output: pdf_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+For the Assignment about Ridge Regression, we compute a function to choose a penalization parameter. The theory about Ridge Regression is used to write basic functions. In order to test these functions the Boston Housing data is used with it.
+Alternatively, we proposed to use a package that deals with Ridge Regression in the background.
 
 ## Choosing the penalization parameter
 
@@ -108,7 +110,7 @@ k_subsets_matrix
 
 ```
 
-```{r, warning=FALSE}
+```{r warning=FALSE}
 #Different aproach
 
 k=10
@@ -154,7 +156,69 @@ for (la in 1:n_lambdas){
     h[[l]] <- diag(H_val)
     y[[l]] <- new_Y_t_val 
     
-    #fill in to vectors outside
+
+  }
+  y_hat <- c(do.call(rbind, y_hat))
+  beta <- c(do.call(cbind, beta))
+  h <- c(do.call(rbind, h))
+  y <- c(do.call(rbind, y))
+  
+  PMSE[[la]] <- 1/n_X_t * sum(((y-y_hat)/(1-h))^2)
+  #PMSE_vec[l]<- #sum(m_hat_vec)/n_val #not this but something
+}    
+PMSE
+
+plot((log(lambda.v[-1]+1)), PMSE[-1]) #First lambda is super high
+```
+
+
+### Task 3
+```{r}
+#Different aproach
+
+k=5
+n_X_t <- dim(X_t)[1]
+p_X_t <- dim(X_t)[2] #length of columns
+n_subset <- as.integer((n_X_t)/k)+ 1
+group <- rep(seq(1,k), times = n_subset)
+group <- group[1:n_X_t]
+
+group_random <- sample(group)
+
+X_t_group <- cbind(X_t, group_random)
+Y_t_group <- cbind(Y_t, group_random)
+
+
+#now we can start:
+PMSE <- list()
+
+for (la in 1:n_lambdas){
+  
+  lambda <- lambda.v[la]
+  
+  y_hat <- list()
+  beta <- list()
+  h <- list()
+  y <- list()
+  
+  for (l in 1:k){
+    new_X_t_val <- subset(X_t_group, group_random==l)[ ,1:p_X_t]
+    new_X_t_test <- subset(X_t_group, group_random!=l)[ ,1:p_X_t]
+    
+    new_Y_t_val <- subset.matrix(Y_t_group, group_random==l)[,1]
+    new_Y_t_test <- subset.matrix(Y_t_group, group_random!=l)[,1]
+    
+    p_new <- dim(new_X_t_test)[2]
+    p_new_v <- dim(new_X_t_val)[2]
+    #H.i <- new_X_t_test%*%solve(t(new_X_t_test)%*%new_X_t_test + 1*diag(1,p_new))%*% t(new_X_t_test)
+    beta[[l]] <- solve(t(new_X_t_test)%*%new_X_t_test + lambda*diag(1,p_new))%*% t(new_X_t_test)%*%(new_Y_t_test)
+    #y_hat.i <- H.i %*%(new_Y_t_test)
+    H_val <- new_X_t_val%*%solve(t(new_X_t_val)%*%new_X_t_val + (lambda+0.000000001)*diag(1,p_new_v))%*% t(new_X_t_val) 
+    # singular matrix for lambda = 0 -> trick: add a very small number 
+    y_hat[[l]] <-  (new_X_t_val)%*%beta[[l]]
+    h[[l]] <- diag(H_val)
+    y[[l]] <- new_Y_t_val 
+    
 
   }
   y_hat <- c(do.call(rbind, y_hat))
@@ -171,6 +235,7 @@ plot((log(lambda.v[-1]+1)), PMSE[-1])
 ```
 
 
+
 ## Ridge Regression for the Boston Housing data
 
 Loading the (corrected) Boston Housing data
@@ -183,7 +248,8 @@ boston <- load("boston.Rdata")
 ```
 
 
-There is a package for Regularization. We are probably not supposed to use this...
+## Alternative solution for Ridge Regression for the Boston Housing data
+There exists a package called 'glmnet' that deals with elastic nets. Specifying $alpha = 0$ Ridge Regression is applied on the data. 
 ```{r}
 #install.packages("glmnet")
 library(glmnet)
