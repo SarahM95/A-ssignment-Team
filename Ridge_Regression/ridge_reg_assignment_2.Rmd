@@ -14,10 +14,9 @@ Alternatively, we proposed to use a package that deals with Ridge Regression in 
 
 ## Choosing the penalization parameter
 
-Testdate (to be removed later!)
+### Function for choosing the penalization parameter
 ```{r}
 prostate <- read.table("prostate_data.txt", header=TRUE, row.names = 1)
-plot(prostate)
 train.sample <- which(prostate$train==TRUE) ##separate trainingsdata from testdata
 val.sample <- which(prostate$train==FALSE)
 
@@ -79,159 +78,91 @@ abline(v=log(1+lambda.CV),col=2,lty=2)
 ```
 
 
-##Task 2
+### Function for Implementing the Ridge Regression penalization parameter
+```{r, warning = FALSE}
+PMSE_k_fold <- function(X_t, Y_t, lambda.v, k=10){
+  n_X_t <- dim(X_t)[1]
+  p_X_t <- dim(X_t)[2] #length of columns
+  n_subset <- as.integer((n_X_t)/k)+ 1
+  group <- rep(seq(1,k), times = n_subset)
+  group <- group[1:n_X_t]
 
-```{r}
-X_t_shuffel <- X_t[sample(nrow(X_t)),]
+
+group_random <- sample(group)
+
+X_t_group <- cbind(X_t, group_random)
+Y_t_group <- cbind(Y_t, group_random)
 
 
-k = 10
+#now we can start:
+PMSE <- list()
 
-is.matrix(X_t_shuffel)
+for (la in 1:n_lambdas){
+  
+  group_random <- sample(group)
+  
+  X_t_group <- cbind(X_t, group_random)
+  Y_t_group <- cbind(Y_t, group_random)
 
-#Assume we can delete the last ? values
-length(X_t_shuffel)
-n_subset = as.integer(length(X_t_shuffel)/k)
-n_subset
 
-k_subsets_matrix <- matrix(0, nrow=k, ncol = n_subset)
-
-c = 1
-for (i in 1:k){
-  for (j in 1:n_subset){
-    k_subsets_k <- X_t_shuffel[(n_subset*(i-1)+1):(n_subset*i)]
-    c<- c + 1
+  #now we can start:
+  PMSE <- list()
+  
+  for (la in 1:n_lambdas){
+    
+    lambda <- lambda.v[la]
+    
+    y_hat <- list()
+    beta <- list() 
+    h <- list()
+    y <- list()
+    
+    for (l in 1:k){
+      new_X_t_val <- subset(X_t_group, group_random==l)[ ,1:p_X_t]
+      new_X_t_test <- subset(X_t_group, group_random!=l)[ ,1:p_X_t]
+      
+      new_Y_t_val <- subset.matrix(Y_t_group, group_random==l)[,1]
+      new_Y_t_test <- subset.matrix(Y_t_group, group_random!=l)[,1]
+      
+      p_new <- dim(new_X_t_test)[2]
+      p_new_v <- dim(new_X_t_val)[2]
+      
+      beta[[l]] <- solve(t(new_X_t_test)%*%new_X_t_test + lambda*diag(1,p_new))%*% t(new_X_t_test)%*%(new_Y_t_test)
+      
+      H_val <- new_X_t_val%*%solve(t(new_X_t_val)%*%new_X_t_val + (lambda+1e-13)*diag(1,p_new_v))%*% t(new_X_t_val) 
+      # singular matrix for lambda = 0 -> trick: add a very small number 
+      y_hat[[l]] <-  (new_X_t_val)%*%beta[[l]]
+      h[[l]] <- diag(H_val)
+      y[[l]] <- new_Y_t_val 
+      
+ 
+  }
+  y_hat <- c(do.call(rbind, y_hat))
+  beta <- c(do.call(cbind, beta))
+  h <- c(do.call(rbind, h))
+  y <- c(do.call(rbind, y))
+  
+  PMSE[[la]] <- 1/n_X_t * sum(((y-y_hat)/(1-h))^2)
   }
 }
+return(PMSE)
+}
 
-k_subsets_matrix
-
-    
-
-```
-
-```{r warning=FALSE}
-#Different aproach
-
-k=10
-n_X_t <- dim(X_t)[1]
-p_X_t <- dim(X_t)[2] #length of columns
-n_subset <- as.integer((n_X_t)/k)+ 1
-group <- rep(seq(1,k), times = n_subset)
-group <- group[1:n_X_t]
-
-group_random <- sample(group)
-
-X_t_group <- cbind(X_t, group_random)
-Y_t_group <- cbind(Y_t, group_random)
-
-
-#now we can start:
-PMSE <- list()
-
-for (la in 1:n_lambdas){
-  
-  lambda <- lambda.v[la]
-  
-  y_hat <- list()
-  beta <- list()
-  h <- list()
-  y <- list()
-  
-  for (l in 1:k){
-    new_X_t_val <- subset(X_t_group, group_random==l)[ ,1:p_X_t]
-    new_X_t_test <- subset(X_t_group, group_random!=l)[ ,1:p_X_t]
-    
-    new_Y_t_val <- subset.matrix(Y_t_group, group_random==l)[,1]
-    new_Y_t_test <- subset.matrix(Y_t_group, group_random!=l)[,1]
-    
-    p_new <- dim(new_X_t_test)[2]
-    p_new_v <- dim(new_X_t_val)[2]
-    #H.i <- new_X_t_test%*%solve(t(new_X_t_test)%*%new_X_t_test + 1*diag(1,p_new))%*% t(new_X_t_test)
-    beta[[l]] <- solve(t(new_X_t_test)%*%new_X_t_test + lambda*diag(1,p_new))%*% t(new_X_t_test)%*%(new_Y_t_test)
-    #y_hat.i <- H.i %*%(new_Y_t_test)
-    H_val <- new_X_t_val%*%solve(t(new_X_t_val)%*%new_X_t_val + (lambda+0.000000001)*diag(1,p_new_v))%*% t(new_X_t_val) 
-    # singular matrix for lambda = 0 -> trick: add a very small number 
-    y_hat[[l]] <-  (new_X_t_val)%*%beta[[l]]
-    h[[l]] <- diag(H_val)
-    y[[l]] <- new_Y_t_val 
-    
-
-  }
-  y_hat <- c(do.call(rbind, y_hat))
-  beta <- c(do.call(cbind, beta))
-  h <- c(do.call(rbind, h))
-  y <- c(do.call(rbind, y))
-  
-  PMSE[[la]] <- 1/n_X_t * sum(((y-y_hat)/(1-h))^2)
-  #PMSE_vec[l]<- #sum(m_hat_vec)/n_val #not this but something
-}    
-PMSE
-
-plot((log(lambda.v[-1]+1)), PMSE[-1]) #First lambda is super high
+PMSE <- PMSE_k_fold(X_t = X_t, Y_t = Y_t, lambda.v = lambda.v, k = 10)
+plot(log(lambda.v[-1]+1), PMSE[-1], ylab = "Predicted Mean Squarred Error", xlab = "log(Lambda+1)", main = "10-fold of Training set")
 ```
 
 
-### Task 3
+### Comparison between 5-fold and 10-fold 
 ```{r}
-#Different aproach
+PMSE_val_5 <- PMSE_k_fold(X_t = X_val, Y_t = Y_val, lambda.v = lambda.v, k = 5)
+plot(log(lambda.v[-1]+1), PMSE_val_5[-1], ylab = "Predicted Mean Squarred Error", xlab = "log(Lambda+1)", main = "5-fold of Validation set")
 
-k=5
-n_X_t <- dim(X_t)[1]
-p_X_t <- dim(X_t)[2] #length of columns
-n_subset <- as.integer((n_X_t)/k)+ 1
-group <- rep(seq(1,k), times = n_subset)
-group <- group[1:n_X_t]
+PMSE_val_10 <- PMSE_k_fold(X_t = X_val, Y_t = Y_val, lambda.v = lambda.v, k = 10)
+plot(log(lambda.v[-1]+1), PMSE_val_10[-1], ylab = "Predicted Mean Squarred Error", xlab = "log(Lambda+1)", main = "10-fold of Validation set")
 
-group_random <- sample(group)
-
-X_t_group <- cbind(X_t, group_random)
-Y_t_group <- cbind(Y_t, group_random)
-
-
-#now we can start:
-PMSE <- list()
-
-for (la in 1:n_lambdas){
-  
-  lambda <- lambda.v[la]
-  
-  y_hat <- list()
-  beta <- list()
-  h <- list()
-  y <- list()
-  
-  for (l in 1:k){
-    new_X_t_val <- subset(X_t_group, group_random==l)[ ,1:p_X_t]
-    new_X_t_test <- subset(X_t_group, group_random!=l)[ ,1:p_X_t]
-    
-    new_Y_t_val <- subset.matrix(Y_t_group, group_random==l)[,1]
-    new_Y_t_test <- subset.matrix(Y_t_group, group_random!=l)[,1]
-    
-    p_new <- dim(new_X_t_test)[2]
-    p_new_v <- dim(new_X_t_val)[2]
-    #H.i <- new_X_t_test%*%solve(t(new_X_t_test)%*%new_X_t_test + 1*diag(1,p_new))%*% t(new_X_t_test)
-    beta[[l]] <- solve(t(new_X_t_test)%*%new_X_t_test + lambda*diag(1,p_new))%*% t(new_X_t_test)%*%(new_Y_t_test)
-    #y_hat.i <- H.i %*%(new_Y_t_test)
-    H_val <- new_X_t_val%*%solve(t(new_X_t_val)%*%new_X_t_val + (lambda+0.000000001)*diag(1,p_new_v))%*% t(new_X_t_val) 
-    # singular matrix for lambda = 0 -> trick: add a very small number 
-    y_hat[[l]] <-  (new_X_t_val)%*%beta[[l]]
-    h[[l]] <- diag(H_val)
-    y[[l]] <- new_Y_t_val 
-    
-
-  }
-  y_hat <- c(do.call(rbind, y_hat))
-  beta <- c(do.call(cbind, beta))
-  h <- c(do.call(rbind, h))
-  y <- c(do.call(rbind, y))
-  
-  PMSE[[la]] <- 1/n_X_t * sum(((y-y_hat)/(1-h))^2)
-  #PMSE_vec[l]<- #sum(m_hat_vec)/n_val #not this but something
-}    
-PMSE
-
-plot((log(lambda.v[-1]+1)), PMSE[-1])
+plot(log(1+lambda.v), PMSE_vec_test)
+abline(v=log(1+lambda.CV),col=2,lty=2)
 ```
 
 
@@ -245,17 +176,23 @@ data(Boston)
 help(Boston)
 
 boston <- load("boston.Rdata")
+
+response <- "MEDV"
+explanatory <- c("CRIM", "ZN", "INDUS", "CHAS", "NOX", "RM", "AGE", "DIS", "RAD", "TAX", "PTRATIO", "B", "LSTAT")
+```
+
+### Using obtained functions for Boston Housing data
+```{r, warning = FALSE}
+PMSE_10 <- PMSE_k_fold(X_t = as.matrix(boston.c[, explanatory]), Y_t = boston.c$MEDV, lambda.v = lambda.v, k = 10)
+plot(log(lambda.v[-1]+1), PMSE_10[-1], ylab = "Predicted Mean Squarred Error", xlab = "log(Lambda+1)", main = "10-fold for Boston Housing Data")
 ```
 
 
-## Alternative solution for Ridge Regression for the Boston Housing data
+### Alternative solution for Ridge Regression for the Boston Housing data
 There exists a package called 'glmnet' that deals with elastic nets. Specifying $alpha = 0$ Ridge Regression is applied on the data. 
 ```{r}
 #install.packages("glmnet")
 library(glmnet)
-
-response <- "MEDV"
-explanatory <- c("CRIM", "ZN", "INDUS", "CHAS", "NOX", "RM", "AGE", "DIS", "RAD", "TAX", "PTRATIO", "B", "LSTAT")
 
 # cv.glmnet cannot handel factors -> "CHAS" is a factor
 boston.c$CHAS <- as.numeric(boston.c$CHAS)
