@@ -107,12 +107,13 @@ k_subsets_matrix
     
 
 ```
-```{r}
+
+```{r, warning=FALSE}
 #Different aproach
 
 k=10
 n_X_t <- dim(X_t)[1]
-p_X_t <- dim(X_t)[2]
+p_X_t <- dim(X_t)[2] #length of columns
 n_subset <- as.integer((n_X_t)/k)+ 1
 group <- rep(seq(1,k), times = n_subset)
 group <- group[1:n_X_t]
@@ -129,42 +130,42 @@ for (la in 1:n_lambdas){
   
   lambda <- lambda.v[la]
   
-  H_ii_vec <- vector("numeric", length = n_X_t)
-  Y_hat_vec <- vector("numeric", length = n_X_t)
-  Y_vec <- vector("numeric", length = n_X_t)
-  
   y_hat <- list()
-  
+  beta <- list()
+  h <- list()
+  y <- list()
   
   for (l in 1:k){
-    nex_X_t_val <- subset.matrix(X_t_group, group_random==l) [ ,1:p_X_t]
-    new_X_t_test <- subset.matrix(X_t_group, group_random!=l)[ ,1:p_X_t]
+    new_X_t_val <- subset(X_t_group, group_random==l)[ ,1:p_X_t]
+    new_X_t_test <- subset(X_t_group, group_random!=l)[ ,1:p_X_t]
     
-    nex_Y_t_val <- subset.matrix(Y_t_group, group_random==l)[,1]
+    new_Y_t_val <- subset.matrix(Y_t_group, group_random==l)[,1]
     new_Y_t_test <- subset.matrix(Y_t_group, group_random!=l)[,1]
     
     p_new <- dim(new_X_t_test)[2]
+    p_new_v <- dim(new_X_t_val)[2]
     #H.i <- new_X_t_test%*%solve(t(new_X_t_test)%*%new_X_t_test + 1*diag(1,p_new))%*% t(new_X_t_test)
-    Beta.i <- solve(t(new_X_t_test)%*%new_X_t_test + lambda*diag(1,p_new))%*% t(new_X_t_test)%*%(new_Y_t_test)
+    beta[[l]] <- solve(t(new_X_t_test)%*%new_X_t_test + lambda*diag(1,p_new))%*% t(new_X_t_test)%*%(new_Y_t_test)
     #y_hat.i <- H.i %*%(new_Y_t_test)
-    H_i_val <- new_X_t_val%*%solve(t(new_X_t_val)%*%new_X_t_val + lambda*diag(1,p_new_v))%*% t(new_X_t_val)
-    y_hat[[i]] <-  (new_X_t_val)%*%Beta.i
-    h_ii <- diag(H_i_val)
-    
+    H_val <- new_X_t_val%*%solve(t(new_X_t_val)%*%new_X_t_val + (lambda+0.000000001)*diag(1,p_new_v))%*% t(new_X_t_val) 
+    # singular matrix for lambda = 0 -> trick: add a very small number 
+    y_hat[[l]] <-  (new_X_t_val)%*%beta[[l]]
+    h[[l]] <- diag(H_val)
+    y[[l]] <- new_Y_t_val 
     
     #fill in to vectors outside
 
-     
-      
   }
-  list <- c(do.call(cbind, y_hat))
+  y_hat <- c(do.call(rbind, y_hat))
+  beta <- c(do.call(cbind, beta))
+  h <- c(do.call(rbind, h))
+  y <- c(do.call(rbind, y))
   
-  PMSE_vec[l]<- #sum(m_hat_vec)/n_val #not this but something
-    
-}
+  PMSE <- 1/n_X_t * sum(((y-y_hat)/(1-h))^2)
+  #PMSE_vec[l]<- #sum(m_hat_vec)/n_val #not this but something
+}    
 
- 
-
+PMSE
 ```
 
 
