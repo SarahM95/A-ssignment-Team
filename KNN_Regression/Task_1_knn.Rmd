@@ -2,7 +2,7 @@
 title: "KNN Regression"
 date: "14/02/20"
 author: "Gregoire Gasparini, Aurora Hofman, Sarah Musiol, Beatriu Tort"
-output: pdf_document
+output: html_document
 ---
 
 ```{r setup, include=FALSE}
