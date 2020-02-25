@@ -13,8 +13,8 @@ knitr::opts_chunk$set(echo = TRUE)
 ## Choosing the penalization parameter
 
 Testdate (to be removed later!)
-```{r, eval = FALSE}
-prostate <- read.table("/Users/aurorahofman/Documents/Utveksling/Stat_lær/week_2/prostate_data.txt", header=TRUE, row.names = 1)
+```{r}
+prostate <- read.table("prostate_data.txt", header=TRUE, row.names = 1)
 plot(prostate)
 train.sample <- which(prostate$train==TRUE) ##separate trainingsdata from testdata
 val.sample <- which(prostate$train==FALSE)
@@ -41,14 +41,7 @@ lambda.v <- exp(seq(0,log(lambda.max+1),length=n_lambdas))-1 #lambda vector
 n_val <- length(Y_val)
 ```
 
-```{r, eval = FALSE}
-
-
-
-```
-
-
-```{r, eval = FALSE}
+```{r}
 PMSE_vs <- function(X_t, Y_t, X_val, Y_val, lambda){
   p <- dim(X_t)[2]
   n_lambdas <- length(lambda)
@@ -140,6 +133,9 @@ for (la in 1:n_lambdas){
   Y_hat_vec <- vector("numeric", length = n_X_t)
   Y_vec <- vector("numeric", length = n_X_t)
   
+  y_hat <- list()
+  
+  
   for (l in 1:k){
     nex_X_t_val <- subset.matrix(X_t_group, group_random==l) [ ,1:p_X_t]
     new_X_t_test <- subset.matrix(X_t_group, group_random!=l)[ ,1:p_X_t]
@@ -152,7 +148,7 @@ for (la in 1:n_lambdas){
     Beta.i <- solve(t(new_X_t_test)%*%new_X_t_test + lambda*diag(1,p_new))%*% t(new_X_t_test)%*%(new_Y_t_test)
     #y_hat.i <- H.i %*%(new_Y_t_test)
     H_i_val <- new_X_t_val%*%solve(t(new_X_t_val)%*%new_X_t_val + lambda*diag(1,p_new_v))%*% t(new_X_t_val)
-    y_hat.i <-  (new_X_t_val)%*%Beta.i
+    y_hat[[i]] <-  (new_X_t_val)%*%Beta.i
     h_ii <- diag(H_i_val)
     
     
@@ -161,6 +157,7 @@ for (la in 1:n_lambdas){
      
       
   }
+  list <- c(do.call(cbind, y_hat))
   
   PMSE_vec[l]<- #sum(m_hat_vec)/n_val #not this but something
     
