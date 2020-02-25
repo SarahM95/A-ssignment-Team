@@ -205,8 +205,6 @@ plot(log(lambda.v[-1]+1), PMSE_val_5[-1], ylab = "Predicted Mean Squarred Error"
 PMSE_val_10 <- PMSE_k_fold(X_t = X_val, Y_t = Y_val, lambda.v = lambda.v, k = 10)
 plot(log(lambda.v[-1]+1), PMSE_val_10[-1], ylab = "Predicted Mean Squarred Error", xlab = "log(Lambda+1)", main = "10-fold of Validation set")
 
-#I am not sure about if the one below is the leave-one-out cross validation or not.
-
 plot(log(1+lambda.v), PMSE_vec_test)
 abline(v=log(1+lambda.CV),col=2,lty=2)
 
