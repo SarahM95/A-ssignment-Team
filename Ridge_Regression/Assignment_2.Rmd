@@ -1,0 +1,345 @@
+---
+title: "Ridge Regression"
+author: "Gregoire Gasparini, Aurora Hofman, Sarah Musiol, Beatriu Tort"
+date: "25 de febrero de 2020"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+
+knitr::opts_chunk$set(echo = TRUE)
+
+```
+
+For the Assignment about Ridge Regression, we compute a function to choose a penalization parameter. The theory about Ridge Regression is used to write basic functions. In order to test these functions the Boston Housing data is used with it.
+
+Alternatively, we proposed to use a package that deals with Ridge Regression in the background.
+
+## Choosing the penalization parameter
+
+
+### Function for choosing the penalization parameter
+
+```{r}
+prostate <- read.table("prostate_data.txt", header=TRUE, row.names = 1)
+
+train.sample <- which(prostate$train==TRUE) ##separate trainingsdata from testdata
+
+val.sample <- which(prostate$train==FALSE)
+
+
+Y_t <- scale( prostate$lpsa[train.sample], center=TRUE, scale=FALSE) ## center but not scale for response
+
+X_t <- scale( as.matrix(prostate[train.sample,1:8]), center=TRUE, scale=TRUE) ##scale and center for response
+
+Y_val <- scale( prostate$lpsa[val.sample], center=TRUE, scale=FALSE) ## center but not scale for response
+
+X_val <- scale( as.matrix(prostate[val.sample,1:8]), center=TRUE, scale=TRUE) ##scale and center for response
+
+
+#predictors
+
+p <- dim(X_t)[2]
+n <- dim(X_t)[1]
+
+XtX <- t(X_t)%*%X_t 
+
+d2 <- eigen(XtX,symmetric = TRUE, only.values = TRUE)$values #eigenvalues of xtx
+
+(cond.number <- sqrt(max(d2)/min(d2)))
+
+
+lambda.max = 2e4
+
+n_lambdas <- 25 ## look at 25 different values
+
+lambda.v <- exp(seq(0,log(lambda.max+1),length=n_lambdas))-1 #lambda vector
+
+n_val <- length(Y_val)
+
+```
+
+
+```{r}
+
+PMSE_vs <- function(X_t, Y_t, X_val, Y_val, lambda){
+
+  p <- dim(X_t)[2]
+  n_lambdas <- length(lambda)
+  XtX <- t(X_t)%*%X_t 
+  PMSE_vec <- vector("numeric", length = n_lambdas)
+  
+  for(l in 1:n_lambdas){
+    lambda <- lambda.v[l]
+    beta_hat <- solve(XtX + lambda*diag(1,p)) %*% t(X_t) %*% Y_t
+    #y_hat = X %*% beta_hat
+    m_hat_vec <- vector("numeric", length = n_val)
+
+    for (n in 1:n_val){
+      m_hat_vec[n] <- (Y_val[n]-(X_val[n,]%*%beta_hat))^2
+
+    }
+
+    PMSE_vec[l]<- sum(m_hat_vec)/n_val
+
+    
+
+  }
+
+  return (PMSE_vec)
+
+}
+
+```
+
+```{r}
+
+PMSE_vec_test <- PMSE_vs(X_t, Y_t, X_val, Y_val, lambda.v)
+
+lambda.CV <- lambda.v[which.min(PMSE_vec_test)]
+
+plot(log(1+lambda.v), PMSE_vec_test)
+
+abline(v=log(1+lambda.CV),col=2,lty=2)
+
+```
+
+### Function for Implementing the Ridge Regression penalization parameter
+
+```{r, warning = FALSE}
+
+PMSE_k_fold <- function(X_t, Y_t, lambda.v, k=10){
+
+  n_X_t <- dim(X_t)[1]
+  p_X_t <- dim(X_t)[2] #length of columns
+  n_subset <- as.integer((n_X_t)/k)+ 1
+  group <- rep(seq(1,k), times = n_subset)
+  group <- group[1:n_X_t]
+group_random <- sample(group)
+X_t_group <- cbind(X_t, group_random)
+Y_t_group <- cbind(Y_t, group_random)
+
+#now we can start:
+
+PMSE <- list()
+
+for (la in 1:n_lambdas){
+
+  group_random <- sample(group)
+
+  X_t_group <- cbind(X_t, group_random)
+
+  Y_t_group <- cbind(Y_t, group_random)
+
+  #now we can start:
+
+  PMSE <- list()
+
+  for (la in 1:n_lambdas){
+
+    lambda <- lambda.v[la]
+    
+    y_hat <- list()
+    beta <- list() 
+    h <- list()
+    y <- list()
+
+    for (l in 1:k){
+
+      new_X_t_val <- subset(X_t_group, group_random==l)[ ,1:p_X_t]
+      new_X_t_test <- subset(X_t_group, group_random!=l)[ ,1:p_X_t]
+
+      new_Y_t_val <- subset.matrix(Y_t_group, group_random==l)[,1]
+      new_Y_t_test <- subset.matrix(Y_t_group, group_random!=l)[,1]
+
+      p_new <- dim(new_X_t_test)[2]
+      p_new_v <- dim(new_X_t_val)[2]
+
+      beta[[l]] <- solve(t(new_X_t_test)%*%new_X_t_test + lambda*diag(1,p_new))%*% t(new_X_t_test)%*%(new_Y_t_test)
+
+      H_val <- new_X_t_val%*%solve(t(new_X_t_val)%*%new_X_t_val + (lambda+1e-13)*diag(1,p_new_v))%*% t(new_X_t_val) 
+
+      # singular matrix for lambda = 0 -> trick: add a very small number 
+
+      y_hat[[l]] <-  (new_X_t_val)%*%beta[[l]]
+      h[[l]] <- diag(H_val)
+      y[[l]] <- new_Y_t_val 
+
+      
+  }
+
+  y_hat <- c(do.call(rbind, y_hat))
+  beta <- c(do.call(cbind, beta))
+  h <- c(do.call(rbind, h))
+  y <- c(do.call(rbind, y))
+
+  PMSE[[la]] <- 1/n_X_t * sum(((y-y_hat)/(1-h))^2)
+
+  }
+
+}
+
+return(PMSE)
+
+}
+
+
+
+PMSE <- PMSE_k_fold(X_t = X_t, Y_t = Y_t, lambda.v = lambda.v, k = 10)
+
+plot(log(lambda.v[-1]+1), PMSE[-1], ylab = "Predicted Mean Squarred Error", xlab = "log(Lambda+1)", main = "10-fold of Training set") # This plot has been done without the first value of the PMSE because it is very large and don't let us see properly the evolution of the rest of the plot.
+
+```
+
+In the graphic of the PMSE of 10-fold of Training set we have a negative exponential distribution. We suspect that there is some problem in the code and this is not working normally but we weren't able to find it. Theorically we should have a graphic with a lower scale and that goes down and then up again so we have a minimum lambda that would be the optimum one.
+
+### Comparison between 5-fold and 10-fold 
+
+```{r}
+
+PMSE_val_5 <- PMSE_k_fold(X_t = X_val, Y_t = Y_val, lambda.v = lambda.v, k = 5)
+
+plot(log(lambda.v[-1]+1), PMSE_val_5[-1], ylab = "Predicted Mean Squarred Error", xlab = "log(Lambda+1)", main = "5-fold of Validation set")
+
+
+PMSE_val_10 <- PMSE_k_fold(X_t = X_val, Y_t = Y_val, lambda.v = lambda.v, k = 10)
+plot(log(lambda.v[-1]+1), PMSE_val_10[-1], ylab = "Predicted Mean Squarred Error", xlab = "log(Lambda+1)", main = "10-fold of Validation set")
+
+#I am not sure about if the one below is the leave-one-out cross validation or not.
+
+plot(log(1+lambda.v), PMSE_vec_test)
+abline(v=log(1+lambda.CV),col=2,lty=2)
+
+
+## leave-one-out cross validation
+
+df.v <- numeric(n_lambdas)
+
+PMSE.CV <- numeric(n_lambdas)
+for (l in 1:n_lambdas){
+  lambda <- lambda.v[l]
+  PMSE.CV[l] <- 0
+  for (i in 1:n_val){
+#   m.Y.i <- mean(Y[-i])
+    m.Y.i <- 0
+    X.i <- X_val[-i,]
+    Y.i <- Y_val[-i]-m.Y.i
+    Xi <- X_val[i,]
+    Yi <- Y_val[i]
+    beta.i <- solve(t(X.i)%*%X.i + lambda*diag(1,p)) %*% t(X.i) %*% Y.i
+    hat.Yi <- Xi %*% beta.i + m.Y.i
+    PMSE.CV[l] <- PMSE.CV[l] + (hat.Yi-Yi)^2
+  }
+  PMSE.CV[l] <- PMSE.CV[l]/n_val
+}
+lambda.CV <- lambda.v[which.min(PMSE.CV)]
+df.CV <- df.v[which.min(PMSE.CV)] 
+
+plot(log(1+lambda.v), PMSE.CV)
+abline(v=log(1+lambda.CV),col=2,lty=2)
+
+plot(df.v, PMSE.CV) 
+abline(v=df.CV,col=2,lty=2)
+
+
+## Generalized Cross Validation (GCV)
+
+beta.path <- matrix(0,nrow=n_lambdas, ncol=p)
+diag.H.lambda <- matrix(0,nrow=n_lambdas, ncol=n_val)
+
+
+PMSE.GCV <- numeric(n_lambdas)
+for (l in 1:n_lambdas){
+  lambda <- lambda.v[l]
+  hat.Y <- X_val %*% beta.path[l,]
+  nu <- sum(diag.H.lambda[l,])
+  PMSE.GCV[l] <- sum( ((Y_val-hat.Y)/(1-nu/n_val))^2 )/n_val
+}
+lambda.GCV <- lambda.v[which.min(PMSE.GCV)]
+df.GCV <- df.v[which.min(PMSE.GCV)]
+
+PMSE.CV.H.lambda <- numeric(n_lambdas)
+lambda.CV.H.lambda <- lambda.v[which.min(PMSE.CV.H.lambda)]
+df.CV.H.lambda <- df.v[which.min(PMSE.CV.H.lambda)]
+
+plot(df.v, PMSE.GCV)
+points(df.v, PMSE.CV,col=6,pch=19,cex=.75)
+abline(v=df.GCV,col=1,lty=2,lwd=3)
+abline(v=df.CV.H.lambda,col=6,lty=6)
+legend("top",c("PMSE.GCV","PMSE.CV","lambda.GCV","lambda.CV"),
+       pch=c(1,19,NA,NA),lty=c(0,0,2,6),lwd=c(0,0,3,1),col=c(1,6,1,6))
+
+```
+
+## Ridge Regression for the Boston Housing data
+
+
+
+Loading the (corrected) Boston Housing data
+
+```{r}
+
+library(MASS)
+
+data(Boston)
+
+help(Boston)
+
+
+
+boston <- load("boston.Rdata")
+
+boston <- boston.c
+
+# cv.glmnet cannot handel factors -> "CHAS" is a factor
+boston.c$CHAS <- as.numeric(boston.c$CHAS)
+
+response <- "MEDV"
+
+explanatory <- c("CRIM", "ZN", "INDUS", "CHAS", "NOX", "RM", "AGE", "DIS", "RAD", "TAX", "PTRATIO", "B", "LSTAT")
+
+```
+
+
+
+### Using obtained functions for Boston Housing data
+
+```{r, warning = FALSE}
+
+PMSE_10 <- PMSE_k_fold(X_t = as.matrix(boston.c[, explanatory]), Y_t = boston.c$MEDV, lambda.v = lambda.v, k = 10)
+
+plot(log(lambda.v[-1]+1), PMSE_10[-1], ylab = "Predicted Mean Squarred Error", xlab = "log(Lambda+1)", main = "10-fold for Boston Housing Data")
+
+```
+
+
+
+
+
+### Alternative solution for Ridge Regression for the Boston Housing data
+
+There exists a package called 'glmnet' that deals with elastic nets. Specifying $alpha = 0$ Ridge Regression is applied on the data. 
+
+```{r}
+#install.packages("glmnet")
+
+library(glmnet)
+
+(ridge <- glmnet(y = boston.c$MEDV, x = as.matrix(boston.c[, explanatory]), alpha = 0))
+
+# alpha = 0: Ridge Regression
+
+# alpha = 1: Lasso Regression
+
+plot(ridge)
+
+
+
+(cv.ridge <- cv.glmnet(y = boston.c$MEDV, x = as.matrix(boston.c[, explanatory]), alpha = 0))
+
+plot(cv.ridge)
+
+```
+
+
+
