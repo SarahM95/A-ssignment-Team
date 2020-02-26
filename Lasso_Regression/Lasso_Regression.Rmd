@@ -16,7 +16,7 @@ The Boston House-price dataset concerns housing values in 506 suburbs of Boston 
 
 The Boston House-price corrected dataset (available in boston.Rdata) con- tains the same data (with some corrections) and it also includes the UTM coor- dinates of the geographical centers of each neighborhood.
 
-### Lasso estimation using the package 'glmnet'
+### 1.1 Lasso estimation using the package 'glmnet'
 After loading the right package, the response and explanatory variables from the Boston Housing data are set.
 ```{r}
 #install.packages("glmnet")
@@ -32,14 +32,96 @@ explanatory <- c("CRIM", "ZN", "INDUS", "CHAS", "NOX", "RM", "AGE", "DIS", "RAD"
 boston.c$CHAS <- as.numeric(boston.c$CHAS)
 ```
 
+Task description: 
 
-### 
+For the Boston House-price corrected dataset use Lasso estimation (in glmnet) to fit the regression model where the response is CMEDV (the co- rrected version of MEDV) and the explanatory variables are the remaining 13 variables in the previous list. Try to provide an interpretation to the estimated model.
+
+
+Fitting the Lasso Regression model.
+```{r}
+lasso_boston <- glmnet(x = as.matrix(boston.c[, explanatory]), 
+                y = boston.c$CMEDV,
+                alpha = 1,     # specifying alpha = 1: Lasso Regression
+                standardize = FALSE,
+                intercept = FALSE)
+lasso_boston
+plot(lasso_boston)
+```
+
+
+### 1.2 Ridge Regression model using glmnet
+Task description: 
+
+Use glmnet to fit the previous model using ridge regression. Compare the 10-fold cross validation results from function cv.glmnet with those you obtained in the previous practice with your own functions.
+
+```{r}
+ridge_boston <- glmnet(x = as.matrix(boston.c[, explanatory]), 
+                y = boston.c$CMEDV,
+                alpha = 0,    # specifying alpha = 0: Ridge Regression
+                standardize = FALSE,
+                intercept = FALSE)
+ridge_boston 
+plot(ridge_boston)
+```
 
 
 
 ## 2. A regression model with $p >> n$
+Reading in the data.
+```{r}
+express <- read.csv("journal.pbio.0020108.sd012.CSV",header=FALSE)
+surv <- read.csv("journal.pbio.0020108.sd013.CSV",header=FALSE)
+death <- (surv[,2]==1)
+log.surv <- log(surv[death,1]+.05)
+expr <- as.matrix(t(express[,death]))
+```
+
+
+### 2.1 Lasso estimation using glmnet for regressing 'log.surv' against 'expr'
+Task decsription: 
+
+Use glmnet and glmnet to obtain the Lasso estimation for regressing log.surv against expr. How many coefficient different from zero are in the Lasso estimator? Illustrate the result with two graphics.
 
 ```{r}
-
+lasso_surv <- glmnet(x = expr, y = log.surv,
+                     alpha = 1)
+lasso_surv
+plot(lasso_surv)
 ```
+
+
+### 2.2 Computation of the responding fitted values
+Task description: 
+
+Compute the fitted values with the Lasso estimated model (you can use predict). Plot the observed values for the response variable against the Lasso fitted values.
+
+```{r}
+?predict
+```
+
+
+
+### 2.3 OLS regression model for 'log.surv' against 'expr'
+Task description: 
+
+Consider the set S0 of non-zero estimated Lasso coefficients. Use OLS to fit a regression model with response log.surv and explanatory variables the columns of expr with indexes in S0. Plot the observed values for the response variable against the OLS fitted values.
+
+```{r}
+lm_surv <- lm(log.surv ~ expr)
+lm_surv
+
+plot(log.surv, lm_surv$fitted.values)
+```
+
+
+### 2.4 Comparison of Lasso and OLS Regression
+Task description: 
+
+Compare the OLS and Lasso fitted values. Do a plot for that.
+
+```{r, eval=FALSE}
+plot(lm_surv$fitted.values, lasso_surv) # fitted values of lasso??
+```
+
+
 
