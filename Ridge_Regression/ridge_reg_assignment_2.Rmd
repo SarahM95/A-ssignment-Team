@@ -39,6 +39,8 @@ lambda.max = 2e4
 n_lambdas <- 25 ## look at 25 different values
 lambda.v <- exp(seq(0,log(lambda.max+1),length=n_lambdas))-1 #lambda vector
 
+lambda.v
+
 n_val <- length(Y_val)
 ```
 
@@ -87,6 +89,46 @@ PMSE_k_fold <- function(X_t, Y_t, lambda.v, k=10){
   group <- rep(seq(1,k), times = n_subset)
   group <- group[1:n_X_t]
 
+<<<<<<< Updated upstream
+=======
+```{r}
+X_t_shuffel <- X_t[sample(nrow(X_t)),]
+
+
+k = 10
+
+is.matrix(X_t_shuffel)
+
+#Assume we can delete the last ? values
+length(X_t_shuffel)
+n_subset = as.integer(length(X_t_shuffel)/k)
+n_subset
+
+k_subsets_matrix <- matrix(0, nrow=k, ncol = n_subset)
+
+c = 1
+for (i in 1:k){
+  for (j in 1:n_subset){
+    k_subsets_k <- X_t_shuffel[(n_subset*(i-1)+1):(n_subset*i)]
+    c<- c + 1
+  }
+}
+
+k_subsets_matrix
+
+    
+
+```
+```{r}
+#Different aproach
+
+k=10
+n_X_t <- dim(X_t)[1]
+p_X_t <- dim(X_t)[2]
+n_subset <- as.integer((n_X_t)/k)+ 1
+group <- rep(seq(1,k), times = n_subset)
+group <- group[1:n_X_t]
+>>>>>>> Stashed changes
 
 group_random <- sample(group)
 
@@ -101,6 +143,7 @@ for (la in 1:n_lambdas){
   
   group_random <- sample(group)
   
+<<<<<<< Updated upstream
   X_t_group <- cbind(X_t, group_random)
   Y_t_group <- cbind(Y_t, group_random)
 
@@ -136,11 +179,35 @@ for (la in 1:n_lambdas){
       y[[l]] <- new_Y_t_val 
       
  
+=======
+  H_ii_vec <- vector("numeric", length = n_X_t)
+  Y_hat_vec <- vector("numeric", length = n_X_t)
+  Y_vec <- vector("numeric", length = n_X_t)
+  
+  y_hat <- list()
+  
+  
+  for (l in 1:k){
+    nex_X_t_val <- subset.matrix(X_t_group, group_random==l) [ ,1:p_X_t]
+    new_X_t_test <- subset.matrix(X_t_group, group_random!=l)[ ,1:p_X_t]
+    
+    nex_Y_t_val <- subset.matrix(Y_t_group, group_random==l)[,1]
+    new_Y_t_test <- subset.matrix(Y_t_group, group_random!=l)[,1]
+    
+    p_new <- dim(new_X_t_test)[2]
+    #H.i <- new_X_t_test%*%solve(t(new_X_t_test)%*%new_X_t_test + 1*diag(1,p_new))%*% t(new_X_t_test)
+    Beta.i <- solve(t(new_X_t_test)%*%new_X_t_test + (lambda)*diag(1,p_new) )%*% t(new_X_t_test)%*%(new_Y_t_test)
+    #y_hat.i <- H.i %*%(new_Y_t_test)
+    H_i_val <- new_X_t_val%*%solve(t(new_X_t_val)%*%new_X_t_val + lambda*diag(1,p_new_v))%*% t(new_X_t_val)
+    y_hat[[i]] <-  (new_X_t_val)%*%Beta.i
+    h_ii <- diag(H_i_val)
+    
+    
+    #fill in to vectors outside
+      
+>>>>>>> Stashed changes
   }
-  y_hat <- c(do.call(rbind, y_hat))
-  beta <- c(do.call(cbind, beta))
-  h <- c(do.call(rbind, h))
-  y <- c(do.call(rbind, y))
+  list <- c(do.call(cbind, y_hat))
   
   PMSE[[la]] <- 1/n_X_t * sum(((y-y_hat)/(1-h))^2)
   }
@@ -175,10 +242,14 @@ library(MASS)
 data(Boston)
 help(Boston)
 
+<<<<<<< Updated upstream
 boston <- load("boston.Rdata")
 
 response <- "MEDV"
 explanatory <- c("CRIM", "ZN", "INDUS", "CHAS", "NOX", "RM", "AGE", "DIS", "RAD", "TAX", "PTRATIO", "B", "LSTAT")
+=======
+Boston
+>>>>>>> Stashed changes
 ```
 
 ### Using obtained functions for Boston Housing data
@@ -207,3 +278,37 @@ plot(cv.ridge)
 ```
 
 
+
+```{r}
+#manually
+
+is.data.frame(Boston)
+
+Y <- scale( Boston$medv, center=TRUE, scale=FALSE) ## center but not scale for response
+X <- scale( as.matrix(Boston[1:13]), center=TRUE, scale=TRUE) ##scale and center for
+p <- dim(X)[2]
+
+#find lambda using kfold validation.
+
+#k_fold(X, )
+
+lambda.opt <- lambda.v[which.min(PMSE_vec_test)] # someting like this
+
+Beta_optimal <- solve(t(X)%*%X + (lambda.opt)*diag(1,p ))%*% t(X)%*%(Y)
+                      
+cbind(explanatory, Beta_optimal)
+
+
+```
+Show in New WindowClear OutputExpand/Collapse Output
+
+[1] 4.435608
+R Console
+
+Modify Chunk OptionsRun Current ChunkModify Chunk OptionsRun All Chunks AboveRun Current ChunkModify Chunk OptionsRun All Chunks AboveRun Current ChunkModify Chunk OptionsRun All Chunks AboveRun Current ChunkModify Chunk OptionsRun All Chunks AboveRun Current ChunkModify Chunk OptionsRun All Chunks AboveRun Current ChunkModify Chunk OptionsRun All Chunks AboveRun Current ChunkModify Chunk OptionsRun All Chunks AboveRun Current Chunk
+Show in New WindowClear OutputExpand/Collapse Output
+
+Show in New WindowClear OutputExpand/Collapse Output
+Error: unexpected '}' in:
+"    
+}"
