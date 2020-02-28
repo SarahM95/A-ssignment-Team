@@ -21,6 +21,7 @@ After loading the right package, the response and explanatory variables from the
 ```{r}
 #install.packages("glmnet")
 library(glmnet)
+library(Matrix)
 
 boston <- load("boston.Rdata")
 
@@ -46,6 +47,8 @@ lasso_boston <- glmnet(x = as.matrix(boston.c[, explanatory]),
                 intercept = FALSE)
 lasso_boston
 plot(lasso_boston)
+
+
 ```
 
 
@@ -62,8 +65,112 @@ ridge_boston <- glmnet(x = as.matrix(boston.c[, explanatory]),
                 intercept = FALSE)
 ridge_boston 
 plot(ridge_boston)
+
+
+
 ```
 
+The ridge regression of boston data using cv.glmnet
+```{r}
+ridge_boston_cv <- cv.glmnet(x = as.matrix(boston.c[, explanatory]), 
+                y = boston.c$CMEDV,
+                alpha = 0,    # specifying alpha = 0: Ridge Regression
+                standardize = FALSE,
+                intercept = FALSE)
+
+```
+
+The function that we have used in the other practice
+```{r}
+PMSE_k_fold <- function(X_t, Y_t, lambda.v, k=10){
+
+  n_X_t <- dim(X_t)[1]
+  p_X_t <- dim(X_t)[2] #length of columns
+  n_subset <- as.integer((n_X_t)/k)+ 1
+  group <- rep(seq(1,k), times = n_subset)
+  group <- group[1:n_X_t]
+group_random <- sample(group)
+X_t_group <- cbind(X_t, group_random)
+Y_t_group <- cbind(Y_t, group_random)
+
+#now we can start:
+
+PMSE <- list()
+
+for (la in 1:n_lambdas){
+
+  group_random <- sample(group)
+
+  X_t_group <- cbind(X_t, group_random)
+
+  Y_t_group <- cbind(Y_t, group_random)
+
+  #now we can start:
+
+  PMSE <- list()
+
+  for (la in 1:n_lambdas){
+
+    lambda <- lambda.v[la]
+    
+    y_hat <- list()
+    beta <- list() 
+    h <- list()
+    y <- list()
+
+    for (l in 1:k){
+
+      new_X_t_val <- subset(X_t_group, group_random==l)[ ,1:p_X_t]
+      new_X_t_test <- subset(X_t_group, group_random!=l)[ ,1:p_X_t]
+
+      new_Y_t_val <- subset.matrix(Y_t_group, group_random==l)[,1]
+      new_Y_t_test <- subset.matrix(Y_t_group, group_random!=l)[,1]
+
+      p_new <- dim(new_X_t_test)[2]
+      p_new_v <- dim(new_X_t_val)[2]
+
+      beta[[l]] <- solve(t(new_X_t_test)%*%new_X_t_test + lambda*diag(1,p_new))%*% t(new_X_t_test)%*%(new_Y_t_test)
+
+      H_val <- new_X_t_val%*%solve(t(new_X_t_val)%*%new_X_t_val + (lambda+1e-13)*diag(1,p_new_v))%*% t(new_X_t_val) 
+
+      # singular matrix for lambda = 0 -> trick: add a very small number 
+
+      y_hat[[l]] <-  (new_X_t_val)%*%beta[[l]]
+      h[[l]] <- diag(H_val)
+      y[[l]] <- new_Y_t_val 
+
+      
+  }
+
+  y_hat <- c(do.call(rbind, y_hat))
+  beta <- c(do.call(cbind, beta))
+  h <- c(do.call(rbind, h))
+  y <- c(do.call(rbind, y))
+
+  PMSE[[la]] <- 1/n_X_t * sum(((y-y_hat)/(1-h))^2)
+
+  }
+
+}
+
+return(PMSE)
+
+}
+lambda.max = 2e4
+n_lambdas <- 25
+lambda.v <- exp(seq(0,log(lambda.max+1),length=n_lambdas))-1
+```
+
+```{r}
+ridge_boston_cv
+plot(ridge_boston_cv)
+
+
+PMSE_val_10 <- PMSE_k_fold(X_t = as.matrix(boston.c[, explanatory]), Y_t = boston.c$CMEDV, lambda.v = lambda.v, k = 10)
+plot(log(lambda.v[-1]+1), PMSE_val_10[-1], ylab = "Predicted Mean Squarred Error", xlab = "log(Lambda+1)", main = "10-fold of Validation set")
+#I am not sure if we have to keep or skip the +1 of this plot in the log(lambda)
+
+```
 
 
 ## 2. A regression model with $p >> n$
@@ -87,6 +194,12 @@ lasso_surv <- glmnet(x = expr, y = log.surv,
                      alpha = 1)
 lasso_surv
 plot(lasso_surv)
+
+lasso_surv_cv <- cv.glmnet(x = expr, y = log.surv,
+                     alpha = 1)
+lasso_surv_cv
+plot(lasso_surv_cv)
+
 ```
 
 
@@ -97,6 +210,7 @@ Compute the fitted values with the Lasso estimated model (you can use predict). 
 
 ```{r}
 ?predict
+
 ```
 
 
