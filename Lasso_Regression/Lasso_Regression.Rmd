@@ -41,9 +41,6 @@ lasso_boston <- glmnet(x = as.matrix(boston.c[, explanatory]),
                 standardize = FALSE,
                 intercept = FALSE)
 lasso_boston$beta
-plot(lasso_boston)
-#text(locator(), labels = c("TAX", "B"))
-# names of the betas missing in the plot
 
 cv_lasso_boston <- cv.glmnet(x = as.matrix(boston.c[, explanatory]), 
                 y = boston.c$CMEDV,
@@ -52,7 +49,11 @@ cv_lasso_boston <- cv.glmnet(x = as.matrix(boston.c[, explanatory]),
                 intercept = FALSE)
 cv_lasso_boston
 plot(cv_lasso_boston)
+
+library(plotmo) #plot glmnet with coefficient names
+plot_glmnet(lasso_boston, s=cv_lasso_boston$lambda.min)
 ```
+
 The Lasso Estimation does variable selection automatically. This results in a model with two non-zero explanatory variables. The variables affecting the model are the full-value property tax rates ('TAX') and the proportion of blacks by town ('B'). 
 
 
@@ -70,9 +71,7 @@ ridge_boston <- glmnet(x = as.matrix(boston.c[, explanatory]),
                 standardize = FALSE,
                 intercept = FALSE)
 ridge_boston$beta 
-plot(ridge_boston)
 ```
-As one can see rigde regression has a lot more non-zero expenatory variables than Lasso. However a lot of them are very close to zero. The one with the larges beta coefficients are the same as for Lasso namely $TAX$ and $B$. 
 
 The ridge regression of boston data using cv.glmnet
 ```{r}
@@ -82,7 +81,12 @@ cv_ridge_boston <- cv.glmnet(x = as.matrix(boston.c[, explanatory]),
                 standardize = FALSE,
                 intercept = FALSE)
 cv_ridge_boston$glmnet.fit$beta
+
+plot_glmnet(ridge_boston, s=cv_ridge_boston$lambda.min)
 ```
+
+As one can see rigde regression has a lot more non-zero expenatory variables than Lasso. However a lot of them are very close to zero. The one with the largest beta coefficients are the same as for Lasso namely $TAX$ and $B$. 
+
 
 The 10-fold-function from previous assignment. 
 ```{r, warning=FALSE}
@@ -169,6 +173,7 @@ plot(log(lambda.v), PMSE_val_10, ylab = "Predicted Mean Squarred Error", xlab = 
 abline(v=log(lambda.v[min]),col=2,lty=2)
 
 ```
+
 As shown in the plots the two approchas give a similar $log(lambda)$ value. 
 
 ## 2. A regression model with $p >> n$
@@ -188,6 +193,7 @@ colnames(expr) <- paste("V", 1:nrow(express), sep = "")
 Glmnet and cv.glmnet are used to obtain the lasso regressino for $log(surv)$ against $express$.
 
 ```{r}
+set.seed(1234)
 lasso_surv <- glmnet(x = expr, y = log.surv,
                      alpha = 1)
 
@@ -207,7 +213,7 @@ abline(v=log(cv_lasso_surv$lambda.1se),col=2,lty=2)
 par(mfrow=c(1,1))
 ```
 
-There are 4 non zero coefficiants using Lasso regreassion. As one can see from the MSE plot this corresponds well with what looks like the point with the lowest MSE. From the coefficient plot one can also see that min lambda results in a vertical line crossing 4 betapaths which corresponds to 4 beta values unequal to zero. 
+There are 3 non zero coefficiants using Lasso regreassion. As one can see from the MSE plot this corresponds well with what looks like the point with the lowest MSE. From the coefficient plot one can also see that min lambda results in a vertical line crossing 3 betapaths which corresponds to 3 beta values unequal to zero. 
 
 ### 2.2 Computation of the responding fitted values
 Task description: 
@@ -241,6 +247,7 @@ lm_surv <- lm(log.surv ~ expr[, coeff_lasso[-1]])
 plot(lm_surv$fitted.values, log.surv)
 abline(a = 0, b = 1, col = 2)
 ```
+
 As one can clearly see this gives a much better prediction for our data. The scales are more similar and the data is quite evenly distributet around the line $x=y$. 
 
 ### 2.4 Comparison of Lasso and OLS Regression
