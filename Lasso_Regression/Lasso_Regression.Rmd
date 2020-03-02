@@ -56,12 +56,12 @@ plot(cv_lasso_boston)
 The Lasso Estimation does variable selection automatically. This results in a model with two non-zero explanatory variables. The variables affecting the model are the full-value property tax rates ('TAX') and the proportion of blacks by town ('B'). 
 
 
-
-
 ### 1.2 Ridge Regression model using glmnet
+
+
+We fit the dataset using glmnet and ridge regression and plot the results. 
 Task description: 
 
-Use glmnet to fit the previous model using ridge regression. Compare the 10-fold cross validation results from function cv.glmnet with those you obtained in the previous practice with your own functions.
 
 ```{r}
 ridge_boston <- glmnet(x = as.matrix(boston.c[, explanatory]), 
@@ -72,6 +72,7 @@ ridge_boston <- glmnet(x = as.matrix(boston.c[, explanatory]),
 ridge_boston$beta 
 plot(ridge_boston)
 ```
+As one can see rigde regression has a lot more non-zero expenatory variables than Lasso. However a lot of them are very close to zero. The one with the larges beta coefficients are the same as for Lasso namely $TAX$ and $B$. 
 
 The ridge regression of boston data using cv.glmnet
 ```{r}
@@ -83,7 +84,7 @@ cv_ridge_boston <- cv.glmnet(x = as.matrix(boston.c[, explanatory]),
 cv_ridge_boston$glmnet.fit$beta
 ```
 
-The function that we have used in the other practice
+The 10-fold-function from previous assignment. 
 ```{r, warning=FALSE}
 PMSE_k_fold <- function(X_t, Y_t, lambda.v, k=10){
 
@@ -147,22 +148,28 @@ return(PMSE)
 }
 
 
-lambda.max = 2e8
+lambda.max = 1e9
 n_lambdas <- 25
 lambda.v <- exp(seq(0,log(lambda.max+1),length=n_lambdas))-1
 ```
 
+
+Comparing the ridge regression using R cv_glmnet and our own function.
 ```{r, warning=FALSE}
-cv_ridge_boston
+
 plot(cv_ridge_boston)
 
 
 PMSE_val_10 <- PMSE_k_fold(X_t = as.matrix(boston.c[, explanatory]), Y_t = boston.c$CMEDV, lambda.v = lambda.v, k = 10)
-plot(log(lambda.v[-1]+1), PMSE_val_10[-1], ylab = "Predicted Mean Squarred Error", xlab = "log(Lambda+1)", main = "10-fold of Validation set")
-#I am not sure if we have to keep or skip the +1 of this plot in the log(lambda)
+
+PMSE_min <- min(unlist(PMSE_val_10))
+min <- which.min(PMSE_val_10)
+
+plot(log(lambda.v), PMSE_val_10, ylab = "Predicted Mean Squarred Error", xlab = "log(Lambda)", main = "10-fold of Validation set")
+abline(v=log(lambda.v[min]),col=2,lty=2)
 
 ```
-
+As shown in the plots the two approchas give a similar $log(lambda)$ value. 
 
 ## 2. A regression model with $p >> n$
 Reading in the data.
