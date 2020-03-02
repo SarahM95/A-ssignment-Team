@@ -33,11 +33,6 @@ explanatory <- c("CRIM", "ZN", "INDUS", "CHAS", "NOX", "RM", "AGE", "DIS", "RAD"
 boston.c$CHAS <- as.numeric(boston.c$CHAS)
 ```
 
-Task description: 
-
-For the Boston House-price corrected dataset use Lasso estimation (in glmnet) to fit the regression model where the response is CMEDV (the co- rrected version of MEDV) and the explanatory variables are the remaining 13 variables in the previous list. Try to provide an interpretation to the estimated model.
-
-
 Fitting the Lasso Regression model.
 ```{r}
 lasso_boston <- glmnet(x = as.matrix(boston.c[, explanatory]), 
@@ -45,11 +40,22 @@ lasso_boston <- glmnet(x = as.matrix(boston.c[, explanatory]),
                 alpha = 1,     # specifying alpha = 1: Lasso Regression
                 standardize = FALSE,
                 intercept = FALSE)
-lasso_boston
+lasso_boston$beta
 plot(lasso_boston)
+#text(locator(), labels = c("TAX", "B"))
+# names of the betas missing in the plot
 
-
+cv_lasso_boston <- cv.glmnet(x = as.matrix(boston.c[, explanatory]), 
+                y = boston.c$CMEDV,
+                alpha = 1,     # specifying alpha = 1: Lasso Regression
+                standardize = FALSE,
+                intercept = FALSE)
+cv_lasso_boston
+plot(cv_lasso_boston)
 ```
+The Lasso Estimation does variable selection automatically. This results in a model with two non-zero explanatory variables. The variables affecting the model are the full-value property tax rates ('TAX') and the proportion of blacks by town ('B'). 
+
+
 
 
 ### 1.2 Ridge Regression model using glmnet
@@ -63,25 +69,22 @@ ridge_boston <- glmnet(x = as.matrix(boston.c[, explanatory]),
                 alpha = 0,    # specifying alpha = 0: Ridge Regression
                 standardize = FALSE,
                 intercept = FALSE)
-ridge_boston 
+ridge_boston$beta 
 plot(ridge_boston)
-
-
-
 ```
 
 The ridge regression of boston data using cv.glmnet
 ```{r}
-ridge_boston_cv <- cv.glmnet(x = as.matrix(boston.c[, explanatory]), 
+cv_ridge_boston <- cv.glmnet(x = as.matrix(boston.c[, explanatory]), 
                 y = boston.c$CMEDV,
                 alpha = 0,    # specifying alpha = 0: Ridge Regression
                 standardize = FALSE,
                 intercept = FALSE)
-
+cv_ridge_boston$glmnet.fit$beta
 ```
 
 The function that we have used in the other practice
-```{r}
+```{r, warning=FALSE}
 PMSE_k_fold <- function(X_t, Y_t, lambda.v, k=10){
 
   n_X_t <- dim(X_t)[1]
@@ -161,10 +164,9 @@ n_lambdas <- 25
 lambda.v <- exp(seq(0,log(lambda.max+1),length=n_lambdas))-1
 ```
 
-```{r}
-ridge_boston_cv
-plot(ridge_boston_cv)
-
+```{r, warning=FALSE}
+cv_ridge_boston
+plot(cv_ridge_boston)
 
 PMSE_val_10 <- PMSE_k_fold(X_t = as.matrix(boston.c[, explanatory]), Y_t = boston.c$CMEDV, lambda.v = lambda.v, k = 10)
 plot(log(lambda.v[-1]+1), PMSE_val_10[-1], ylab = "Predicted Mean Squarred Error", xlab = "log(Lambda+1)", main = "10-fold of Validation set")
@@ -181,6 +183,7 @@ surv <- read.csv("journal.pbio.0020108.sd013.CSV",header=FALSE)
 death <- (surv[,2]==1)
 log.surv <- log(surv[death,1]+.05)
 expr <- as.matrix(t(express[,death]))
+colnames(expr) <- paste("V", 1:nrow(express), sep = "")
 ```
 
 
@@ -192,14 +195,20 @@ Use glmnet and glmnet to obtain the Lasso estimation for regressing log.surv aga
 ```{r}
 lasso_surv <- glmnet(x = expr, y = log.surv,
                      alpha = 1)
-lasso_surv
-plot(lasso_surv)
 
-lasso_surv_cv <- cv.glmnet(x = expr, y = log.surv,
+cv_lasso_surv <- cv.glmnet(x = expr, y = log.surv,
                      alpha = 1)
-lasso_surv_cv
-plot(lasso_surv_cv)
 
+# Number of non-zero coefficients
+length(rownames(coef(cv_lasso_surv, s = "lambda.min"))[coef(cv_lasso_surv, s = "lambda.min")[,1] != 0])
+
+# Plot two graphics
+par(mfrow=c(2,1))
+plot(cv_lasso_surv)
+plot(lasso_surv,xvar="lambda")
+abline(v=log(cv_lasso_surv$lambda.min),col=2,lty=2)
+abline(v=log(cv_lasso_surv$lambda.1se),col=2,lty=2)
+par(mfrow=c(1,1))
 ```
 
 
@@ -209,10 +218,15 @@ Task description:
 Compute the fitted values with the Lasso estimated model (you can use predict). Plot the observed values for the response variable against the Lasso fitted values.
 
 ```{r}
-?predict
+predict_lasso <- predict(lasso_surv,
+                  newx = expr,
+                  s = cv_lasso_surv$lambda.min)
 
+plot(predict_lasso, log.surv)
+abline(a=0, b=1, col = 2)
 ```
 
+Scale is not good.
 
 
 ### 2.3 OLS regression model for 'log.surv' against 'expr'
@@ -221,10 +235,13 @@ Task description:
 Consider the set S0 of non-zero estimated Lasso coefficients. Use OLS to fit a regression model with response log.surv and explanatory variables the columns of expr with indexes in S0. Plot the observed values for the response variable against the OLS fitted values.
 
 ```{r}
-lm_surv <- lm(log.surv ~ expr)
+coeff_lasso <- rownames(coef(cv_lasso_surv, s = "lambda.min"))[coef(cv_lasso_surv, s = "lambda.min")[,1] != 0]
+
+lm_surv <- lm(log.surv ~ expr[, coeff_lasso[-1]])
 lm_surv
 
-plot(log.surv, lm_surv$fitted.values)
+plot(lm_surv$fitted.values, log.surv)
+abline(a = 0, b = 1, col = 2)
 ```
 
 
@@ -234,7 +251,8 @@ Task description:
 Compare the OLS and Lasso fitted values. Do a plot for that.
 
 ```{r, eval=FALSE}
-plot(lm_surv$fitted.values, lasso_surv) # fitted values of lasso??
+plot(lm_surv$fitted.values, predict_lasso)
+abline(a = 0, b = 1, col = 2)
 ```
 
 
