@@ -188,9 +188,8 @@ colnames(expr) <- paste("V", 1:nrow(express), sep = "")
 
 
 ### 2.1 Lasso estimation using glmnet for regressing 'log.surv' against 'expr'
-Task decsription: 
 
-Use glmnet and glmnet to obtain the Lasso estimation for regressing log.surv against expr. How many coefficient different from zero are in the Lasso estimator? Illustrate the result with two graphics.
+Glmnet and cv.glmnet are used to obtain the lasso regressino for $log(surv)$ against $express$.
 
 ```{r}
 lasso_surv <- glmnet(x = expr, y = log.surv,
@@ -200,6 +199,7 @@ cv_lasso_surv <- cv.glmnet(x = expr, y = log.surv,
                      alpha = 1)
 
 # Number of non-zero coefficients
+print("Number of non-zero coeff")
 length(rownames(coef(cv_lasso_surv, s = "lambda.min"))[coef(cv_lasso_surv, s = "lambda.min")[,1] != 0])
 
 # Plot two graphics
@@ -211,6 +211,7 @@ abline(v=log(cv_lasso_surv$lambda.1se),col=2,lty=2)
 par(mfrow=c(1,1))
 ```
 
+There are 4 non zero coefficiants using Lasso regreassion. As one can see from the MSE plot this corresponds well with what looks like the point with the lowest MSE. From the coefficient plot one can also see that min lambda results in a vertical line crossing 4 betapaths which corresponds to 4 beta values unequal to zero. 
 
 ### 2.2 Computation of the responding fitted values
 Task description: 
@@ -221,29 +222,30 @@ Compute the fitted values with the Lasso estimated model (you can use predict). 
 predict_lasso <- predict(lasso_surv,
                   newx = expr,
                   s = cv_lasso_surv$lambda.min)
-
-plot(predict_lasso, log.surv)
+plot( log.surv, predict_lasso)
 abline(a=0, b=1, col = 2)
 ```
 
-Scale is not good.
+As one can see from the plot the real values are on a larger scale than the predicted values. This could mean that this is not the best way to modle this type of data. 
 
 
 ### 2.3 OLS regression model for 'log.surv' against 'expr'
-Task description: 
 
-Consider the set S0 of non-zero estimated Lasso coefficients. Use OLS to fit a regression model with response log.surv and explanatory variables the columns of expr with indexes in S0. Plot the observed values for the response variable against the OLS fitted values.
+Now we will fitt and OLS model with the responsvariables given by the non-zero coefficiants in the Lasso regreassion. 
 
 ```{r}
 coeff_lasso <- rownames(coef(cv_lasso_surv, s = "lambda.min"))[coef(cv_lasso_surv, s = "lambda.min")[,1] != 0]
 
+coeff_lasso
+
+
 lm_surv <- lm(log.surv ~ expr[, coeff_lasso[-1]])
-lm_surv
+
 
 plot(lm_surv$fitted.values, log.surv)
 abline(a = 0, b = 1, col = 2)
 ```
-
+As one can clearly see this gives a much better prediction for our data. The scales are more similar and the data is quite evenly distributet around the line $x=y$. 
 
 ### 2.4 Comparison of Lasso and OLS Regression
 Task description: 
@@ -251,9 +253,14 @@ Task description:
 Compare the OLS and Lasso fitted values. Do a plot for that.
 
 ```{r, eval=FALSE}
+print("Coefficiants Lasso regression")
+coef(cv_lasso_surv, s = "lambda.min")[coef(cv_lasso_surv, s = "lambda.min")[,1] != 0]
+print("Coefficiants OLS")
+lm_surv$coefficients
+
 plot(lm_surv$fitted.values, predict_lasso)
 abline(a = 0, b = 1, col = 2)
 ```
 
-
+The OLS coefficiants are a lot larger than the Lasso regression coefficiants, this can also be seen in the plot where one can observe that the OLS fittes values are on a much larger scale than the Lasso fitted values. 
 
