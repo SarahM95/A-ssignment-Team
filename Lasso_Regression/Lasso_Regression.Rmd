@@ -92,23 +92,11 @@ PMSE_k_fold <- function(X_t, Y_t, lambda.v, k=10){
   n_subset <- as.integer((n_X_t)/k)+ 1
   group <- rep(seq(1,k), times = n_subset)
   group <- group[1:n_X_t]
-group_random <- sample(group)
-X_t_group <- cbind(X_t, group_random)
-Y_t_group <- cbind(Y_t, group_random)
-
-#now we can start:
-
-PMSE <- list()
-
-for (la in 1:n_lambdas){
-
   group_random <- sample(group)
-
   X_t_group <- cbind(X_t, group_random)
-
   Y_t_group <- cbind(Y_t, group_random)
 
-  #now we can start:
+#now we can start:
 
   PMSE <- list()
 
@@ -154,12 +142,12 @@ for (la in 1:n_lambdas){
 
   }
 
-}
-
 return(PMSE)
 
 }
-lambda.max = 2e4
+
+
+lambda.max = 2e8
 n_lambdas <- 25
 lambda.v <- exp(seq(0,log(lambda.max+1),length=n_lambdas))-1
 ```
@@ -167,6 +155,7 @@ lambda.v <- exp(seq(0,log(lambda.max+1),length=n_lambdas))-1
 ```{r, warning=FALSE}
 cv_ridge_boston
 plot(cv_ridge_boston)
+
 
 PMSE_val_10 <- PMSE_k_fold(X_t = as.matrix(boston.c[, explanatory]), Y_t = boston.c$CMEDV, lambda.v = lambda.v, k = 10)
 plot(log(lambda.v[-1]+1), PMSE_val_10[-1], ylab = "Predicted Mean Squarred Error", xlab = "log(Lambda+1)", main = "10-fold of Validation set")
