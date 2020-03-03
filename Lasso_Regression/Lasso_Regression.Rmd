@@ -127,12 +127,9 @@ PMSE_k_fold <- function(X_t, Y_t, lambda.v, k=10){
 
       beta[[l]] <- solve(t(new_X_t_test)%*%new_X_t_test + lambda*diag(1,p_new))%*% t(new_X_t_test)%*%(new_Y_t_test)
 
-      H_val <- new_X_t_val%*%solve(t(new_X_t_val)%*%new_X_t_val + (lambda+1e-13)*diag(1,p_new_v))%*% t(new_X_t_val) 
-
       # singular matrix for lambda = 0 -> trick: add a very small number 
 
       y_hat[[l]] <-  (new_X_t_val)%*%beta[[l]]
-      h[[l]] <- diag(H_val)
       y[[l]] <- new_Y_t_val 
 
       
@@ -140,10 +137,9 @@ PMSE_k_fold <- function(X_t, Y_t, lambda.v, k=10){
 
   y_hat <- c(do.call(rbind, y_hat))
   beta <- c(do.call(cbind, beta))
-  h <- c(do.call(rbind, h))
   y <- c(do.call(rbind, y))
 
-  PMSE[[la]] <- 1/n_X_t * sum(((y-y_hat)/(1-h))^2)
+  PMSE[[la]] <- 1/n_X_t * sum((y-y_hat)^2)
 
   }
 
@@ -172,9 +168,11 @@ min <- which.min(PMSE_val_10)
 plot(log(lambda.v), PMSE_val_10, ylab = "Predicted Mean Squarred Error", xlab = "log(Lambda)", main = "10-fold of Validation set")
 abline(v=log(lambda.v[min]),col=2,lty=2)
 
+print("Lambda min using k-fold-manually")
+log(lambda.v[min])
 ```
 
-As shown in the plots the two approchas give a similar $log(lambda)$ value. 
+As shown in the plots the two approchas give a similar $log(lambda)$ value althoug the MSE values are not the same. We assume there is still an error in our k-fold code. 
 
 ## 2. A regression model with $p >> n$
 Reading in the data.
@@ -213,7 +211,7 @@ abline(v=log(cv_lasso_surv$lambda.1se),col=2,lty=2)
 par(mfrow=c(1,1))
 ```
 
-There are 3 non zero coefficiants using Lasso regreassion. As one can see from the MSE plot this corresponds well with what looks like the point with the lowest MSE. From the coefficient plot one can also see that min lambda results in a vertical line crossing 3 betapaths which corresponds to 3 beta values unequal to zero. 
+There are 4 non zero coefficiants using Lasso regreassion. As one can see from the MSE plot this corresponds well with what looks like the point with the lowest MSE. From the coefficient plot one can also see that min lambda results in a vertical line crossing 4 betapaths which corresponds to 4 beta values unequal to zero. 
 
 ### 2.2 Computation of the responding fitted values
 Task description: 
@@ -233,7 +231,7 @@ As one can see from the plot the real values are on a larger scale than the pred
 
 ### 2.3 OLS regression model for 'log.surv' against 'expr'
 
-Now we will fitt and OLS model with the responsvariables given by the non-zero coefficiants in the Lasso regreassion. 
+Now we will fitt and OLS model with the responsvariables given by the non-zero coefficiants in the Lasso regression. 
 
 ```{r}
 coeff_lasso <- rownames(coef(cv_lasso_surv, s = "lambda.min"))[coef(cv_lasso_surv, s = "lambda.min")[,1] != 0]
