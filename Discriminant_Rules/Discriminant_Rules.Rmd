@@ -155,7 +155,8 @@ library(Matrix)
 glmnet_spam <-
   glmnet(as.matrix(spam_train[, explanatory]), spam_train$spam.01, family = "binomial")
 
-cv_glmnet_spam <- cv.glmnet(as.matrix(spam_train[, explanatory]), spam_train$spam.01, family = "binomial")
+cv_glmnet_spam <-
+  cv.glmnet(as.matrix(spam_train[, explanatory]), spam_train$spam.01, family = "binomial")
 
 glmnet_spam$beta
 ```
@@ -168,7 +169,7 @@ sum(spam_train$spam.01 == 0)
 sum(spam_train$spam.01 == 1)
 
 cl <- factor(c(rep("0", 1853), rep("1", 1214))) # it's not finished
-knn_spam <- knn(spam_train, spam_test, cl, k=1)
+knn_spam <- knn(spam_train, spam_test, cl, prob = TRUE)
 cv_knn_spam <- knn.cv(spam_train, cl, k=1)
 ```
 
@@ -183,11 +184,12 @@ Specificity: Probability of classifying correctly a negative case.
 ### ROC curve for GLM
 ```{r}
 library(pROC)
-# Complicated version: 
-df_glm <- data.frame(response = spam_train$spam.01, predicted = round(glm_spam$fitted.values, 0))
+# Complicated version:
+df_glm <-
+  data.frame(response = spam_train$spam.01,
+             predicted = round(glm_spam$fitted.values, 0))
 
-ROC_glm <- xtabs(~predicted + response, data = df_glm)
-
+ROC_glm <- xtabs( ~ predicted + response, data = df_glm)
 
 ```
 
@@ -198,7 +200,16 @@ plot(roc.glmnet(cv_glmnet_spam, newy = spam_test$spam.01, newx = as.matrix(spam_
 
 ### ROC curve for KNN
 ```{r}
+# copied from https://stackoverflow.com/questions/11741599/how-to-plot-a-roc-curve-for-a-knn-model
+# Doesn´t work though
+library(ROCR)
 
+prob <- attr(knn_spam, "prob")
+prob <- ifelse(knn_spam == "-1", 1-prob, prob) - 1
+
+pred_knn <- prediction(prob, cl)
+pred_knn <- performance(pred_knn, "tpr", "fpr")
+plot(pred_knn, avg= "threshold", colorize=T, lwd=3, main="Voilà, a ROC curve!")
 ```
 
 
