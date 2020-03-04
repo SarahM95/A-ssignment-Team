@@ -96,6 +96,7 @@ Consider the following three classification rules:
 Use the training sample to fix the tunning parameters (when needed) and to estimate the model parameters (when needed).
 
 
+### Logistic Regression by Maximum Likelihood
 ```{r, eval=FALSE}
 response <- "spam.01"
 explanatory <-
@@ -146,29 +147,56 @@ for (i in 1:5)
 
 ```
 
-
+### Logistic Regression by Lasso
 ```{r,eval=FALSE}
-# Logistic regression by Lasso
 library(glmnet)
 library(Matrix)
+
 glmnet_spam <-
-  glmnet(spam_train[, explanatory], spam_train$spam.01, family = "binomial")
+  glmnet(as.matrix(spam_train[, explanatory]), spam_train$spam.01, family = "binomial")
+
+cv_glmnet_spam <- cv.glmnet(as.matrix(spam_train[, explanatory]), spam_train$spam.01, family = "binomial")
+
+glmnet_spam$beta
 ```
 
-
+### KNN binary regression
 ```{r,eval=FALSE}
 # KNN binary regression 
 library(class)
+sum(spam_train$spam.01 == 0)
+sum(spam_train$spam.01 == 1)
 
-cl <- factor(c(rep("0", ), rep("1", ))) # it's not finished
+cl <- factor(c(rep("0", 1853), rep("1", 1214))) # it's not finished
 knn_spam <- knn(spam_train, spam_test, cl, k=1)
-knn.cv_spam <- knn.cv(spam_train, cl, k=1)
-
+cv_knn_spam <- knn.cv(spam_train, cl, k=1)
 ```
 
 
 ## 4. Use the test sample to compute and plot the ROC curve for each rule.
+ROC curve: y-axis Sensitivity
+            x-axis 1-Specificity
+            
+Sensitivity: Probability of classifying correctly a positive
+case: TRUE POSITIVE.
+Specificity: Probability of classifying correctly a negative case.
+### ROC curve for GLM
+```{r}
+library(pROC)
+# Complicated version: 
+df_glm <- data.frame(response = spam_train$spam.01, predicted = round(glm_spam$fitted.values, 0))
 
+ROC_glm <- xtabs(~predicted + response, data = df_glm)
+
+
+```
+
+### ROC curve for glmnet
+```{r}
+plot(roc.glmnet(cv_glmnet_spam, newy = spam_test$spam.01, newx = as.matrix(spam_test[, explanatory])))
+```
+
+### ROC curve for KNN
 ```{r}
 
 ```

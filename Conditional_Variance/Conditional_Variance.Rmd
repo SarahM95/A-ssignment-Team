@@ -1,0 +1,42 @@
+---
+title: "Estimating the conditional variance by local linear regression"
+author: "Gregoire Gasparini, Aurora Hofman, Sarah Musiol, Beatriu Tort"
+date: "17 de marzo de 2020"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Aircraft data
+```{r}
+library(sm)
+
+data(aircraft)
+help(aircraft)
+attach(aircraft)
+lgPower <- log(Power)
+lgSpan <- log(Span)
+lgLength <- log(Length)
+lgWeight <- log(Weight)
+lgSpeed <- log(Speed)
+lgRange <- log(Range)
+```
+
+
+## Estimating the conditional variance
+
+### First, use the function loc.pol.reg that you can find in ATENEA and choose all the bandwidth values you need by leave-one-out cross-validation (you have not to program it again! Just look for the right function in the *.Rmd files you can find in ATENEA)
+
+```{r}
+
+```
+
+
+### Second, use the function sm.regression from library sm and choose all the bandwidth values you need by direct plug-in (use the function dpill from the same library KernSmooth).
+
+```{r}
+
+```
+
