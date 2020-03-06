@@ -59,28 +59,11 @@ Task description:
 Divide the data into two parts: 2/3 for the training sample, 1/3 for the test sample. You should do it in a way that SPAM e-mail are 2/3 in the training sample and 1/3 in the test sample, and that the same happens for NO SPAM e-mails.
 
 ```{r}
-#ind.train <- sample(1:nrow(spam), 2 / 3 * nrow(spam))
+ind_train_spam <- as.numeric(sample(rownames(spam[spam$spam.01 == 1,]), 2 / 3 * nrow(spam[spam$spam.01 == 1,])))
+ind_train_nospam <- as.numeric(sample(rownames(spam[spam$spam.01 == 0,]), 2 / 3 * nrow(spam[spam$spam.01 == 0,])))
 
-#spam_train <- spam[ind.train, ]
-#spam_test <- spam[-ind.train, ]
-
-# I have changed the formula with this one for being sure of the proportions of 0 and 1 in train and test samples. I am not sure if this is necessary or with the short version.
-
-spamT <- filter(spam, spam.01 == 1)
-spamF <- filter(spam, spam.01 == 0)
-
-ind.trainT <- sample(1:nrow(spamT), 2 / 3 * nrow(spamT))
-ind.trainF <- sample(1:nrow(spamF), 2 / 3 * nrow(spamF))
-
-spam_trainT <- spamT[ind.trainT, ]
-spam_trainF <- spamF[ind.trainF, ]
-spam_testT <- spamT[-ind.trainT, ]
-spam_testF <- spamF[-ind.trainF, ]
-
-
-spam_train <- rbind(spam_trainT, spam_trainF)
-spam_test <- rbind(spam_testT, spam_testF)
-
+spam_train <- spam[c(ind_train_spam, ind_train_nospam),]
+spam_test <- spam[-c(ind_train_spam, ind_train_nospam),]
 ```
 
 
@@ -103,48 +86,7 @@ explanatory <-
   colnames(spam_train)[colnames(spam_train) != response]
 # Logistic regression by maximum likelihood
 glm_spam <-
-  glm(spam_train$spam.01 ~ ., family = "binomial", data = spam_train)
-glm_spam
-
-
-
-# by IRWLS from https://www.stt.msu.edu/users/pszhong/R-code-for-lecture-12.txt
-
-########################################################
-## Applying the IRWLS method to logistic regression model
-## with Bernoulli response
-########################################################
-
-## Step 1: Set the initial estimates
-
-beta <- c(0.8, 1.5)
-eta <- beta[1] + beta[2] * X
-mu <- exp(eta) / (1 + exp(eta))
-
-## Step 2: Compute the adjusted dependent response.
-
-nz <- eta + (Y - mu) / (mu * (1 - mu))
-
-## Step 3: Compute weights for the weighted least square.
-
-w <- mu * (1 - mu)
-
-## Step 4: Obtain the initial estimates of beta0 and beta1 through the following weighted least square method. Meanwhile, obtain the updates.
-
-lmod <- lm(nz ~ X, weights = w)
-
-## Step 5: Repeat the above steps until the convergence of beta0 and beta1.
-
-for (i in 1:5)
-{
-  eta <- lmod$fit
-  mu <- exp(eta) / (1 + exp(eta))  ## inverse of logit function
-  nz <- eta + (Y - mu) / (mu * (1 - mu))
-  w <- mu * (1 - mu)
-  lmod <- lm(nz ~ X, weights = w)
-  cat(i, coef(lmod), "\n")
-}
-
+  glm(spam_train$spam.01 ~ ., family = binomial(link = "logit"), data = spam_train)
 ```
 
 ### Logistic Regression by Lasso
@@ -157,18 +99,15 @@ glmnet_spam <-
 
 cv_glmnet_spam <-
   cv.glmnet(as.matrix(spam_train[, explanatory]), spam_train$spam.01, family = "binomial")
-
-glmnet_spam$beta
 ```
+
 
 ### KNN binary regression
 ```{r,eval=FALSE}
 # KNN binary regression 
 library(class)
-sum(spam_train$spam.01 == 0)
-sum(spam_train$spam.01 == 1)
 
-cl <- factor(c(rep("0", 1853), rep("1", 1214))) # it's not finished
+cl <- factor(c(rep("0", sum(spam_train$spam.01 == 0)), rep("1", sum(spam_train$spam.01 == 1))))
 knn_spam <- knn(spam_train, spam_test, cl, prob = TRUE)
 cv_knn_spam <- knn.cv(spam_train, cl, k=1)
 ```
@@ -183,34 +122,44 @@ case: TRUE POSITIVE.
 Specificity: Probability of classifying correctly a negative case.
 ### ROC curve for GLM
 ```{r}
-library(pROC)
+library(ROCR)
 # Complicated version:
-df_glm <-
-  data.frame(response = spam_train$spam.01,
-             predicted = round(glm_spam$fitted.values, 0))
-
-ROC_glm <- xtabs( ~ predicted + response, data = df_glm)
-
+glm_pred <- predict(glm_spam, newdata = spam_test)
+glm_prediction <- prediction(glm_pred, spam_test$spam.01)
+glm_performance <- performance(glm_prediction, "sens", "spec")
 ```
 
 ### ROC curve for glmnet
 ```{r}
-plot(roc.glmnet(cv_glmnet_spam, newy = spam_test$spam.01, newx = as.matrix(spam_test[, explanatory])))
+glmnet_pred <- predict(cv_glmnet_spam, newx = as.matrix(spam_test[, explanatory]), type = "response")
+glmnet_prediction <- prediction(glmnet_pred, spam_test$spam.01)
+glmnet_performance <- performance(glmnet_prediction, "sens", "spec")
 ```
 
 ### ROC curve for KNN
 ```{r}
 # copied from https://stackoverflow.com/questions/11741599/how-to-plot-a-roc-curve-for-a-knn-model
-# Doesn´t work though
-library(ROCR)
+#remotes::install_github("Dasonk/knnflex")
+library(knnflex)
 
+#knn_dist <- knn.dist(spam)
+#knn_pred <- knn.predict(spam_train, spam_test, y = spam.01, knn_dist, k=3)
 prob <- attr(knn_spam, "prob")
-prob <- ifelse(knn_spam == "-1", 1-prob, prob) - 1
+knn_pred <- ifelse(knn_spam == "-1", 1-prob, prob) - 1
 
-pred_knn <- prediction(prob, cl)
-pred_knn <- performance(pred_knn, "tpr", "fpr")
-plot(pred_knn, avg= "threshold", colorize=T, lwd=3, main="Voilà, a ROC curve!")
+cl_test <- factor(c(rep("0", sum(spam_test$spam.01 == 0)), rep("1", sum(spam_test$spam.01 == 1))))
+knn_prediction <- prediction(knn_pred, cl_test)
+knn_performance <- performance(knn_prediction, "sens", "spec")
 ```
+
+### Plot ROC curves for each rule
+```{r}
+plot(glm_performance, col = "red")
+plot(glmnet_performance, add = TRUE, col = "green")
+plot(knn_performance, add = TRUE, col = "black")
+legend("bottomleft", legend("GLM", "GLMNET", "KNN"), col = c("red", "green", "black"))
+```
+
 
 
 
@@ -218,6 +167,29 @@ plot(pred_knn, avg= "threshold", colorize=T, lwd=3, main="Voilà, a ROC curve!")
 
 ```{r}
 c = 1/2
+library(shipunov)
+
+# GLM 
+class_glm <- as.numeric(ifelse(glm_pred > 0.5,
+                           "1", "0"))
+
+MCR_glm <- Misclass(class_glm, spam_test$spam.01)
+
+# GLMNET
+class_glmnet <- as.numeric(ifelse(glmnet_pred > 0.5,
+                           "1", "0"))
+
+MCR_glmnet <- Misclass(class_glmnet, spam_test$spam.01)
+
+# KNN 
+class_knn <- as.numeric(ifelse(knn_pred > 0.5,
+                           "1", "0"))
+
+MCR_knn <- Misclass(class_knn, spam_test$spam.01)
+```
+
+### Plot the Misclassification Error Rates for each rule
+```{r}
 
 ```
 
@@ -226,6 +198,19 @@ c = 1/2
 ## 6. Compute $l_{val}$ for each rule.
 
 ```{r}
+likelihood <- function(test, y, MCR) {
+  prob <- (MCR[2,1] + MCR[2,2])/nrow(test)
+  l_val <- 1/nrow(test) * sum(y * log(prob) + (1-y) * log(1-prob))
+  return(l_val)
+}
 
+# GLM
+l_val_glm <- likelihood(spam_test, spam_test$spam.01, MCR_glm)
+
+# GLMNET
+l_val_glmnet <- likelihood(spam_test, spam_test$spam.01, MCR_glmnet)
+
+# KNN
+l_val_knn <- likelihood(spam_test, spam_test$spam.01, MCR_knn)
 ```
 
