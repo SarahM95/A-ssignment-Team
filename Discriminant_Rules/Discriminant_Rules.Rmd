@@ -19,7 +19,7 @@ The “spam” concept is diverse: advertisements for products/web sites, make m
 -The run-length attributes (55-57) measure the length of sequences of consecutive capital letters.
 
 
-## 1. Use the script spam.R to read the data from the SPAM e-mail database.
+## 1. Reading the data from the SPAM database using spam.R
 
 ```{r, eval=FALSE}
 source("Discriminant_Rules/spam_email_database/spam.R")
@@ -54,9 +54,11 @@ names(spam) <- spam.names
 
 
 ## 2. Dividing data in training set and test set
-Task description: 
 
-Divide the data into two parts: 2/3 for the training sample, 1/3 for the test sample. You should do it in a way that SPAM e-mail are 2/3 in the training sample and 1/3 in the test sample, and that the same happens for NO SPAM e-mails.
+The data is devided into a training set and a validation set wiht respectivly $2/3$
+and $1/3$ of the data in each gorup. The aim is as well to get a proximatly $2/3$
+and $1/3$ of both the spam ans the non spam emails in each group. Tho achieve this we first devide the data in to spam and no spam before deviding the data further into a test and a validation set. 
+
 
 ```{r}
 ind_train_spam <- as.numeric(sample(rownames(spam[spam$spam.01 == 1,]), 2 / 3 * nrow(spam[spam$spam.01 == 1,])))
@@ -64,19 +66,21 @@ ind_train_nospam <- as.numeric(sample(rownames(spam[spam$spam.01 == 0,]), 2 / 3 
 
 spam_train <- spam[c(ind_train_spam, ind_train_nospam),]
 spam_test <- spam[-c(ind_train_spam, ind_train_nospam),]
+
+
+##SHOULD WE NOT SHUFFEL THE DATA BEFORE STARTING TO WORK WITH THEM OR DOESNT IT MATTER? 
 ```
 
 
 ## 3. Classification using the Training sample
-Task description: 
 
-Consider the following three classification rules:
+Three classification rules are considered:
 
--Logistic regression fitted by maximum likelihood (IRWLS, glm). 
--Logistic regression fitted by Lasso (glment).
--k-nn binary regression (you can use your own implementation or functions knn and knn.cv from the R package class).
+-Logistic regression fitted by maximum likelihood. 
+-Logistic regression fitted by Lasso.
+-k-nn binary regression 
 
-Use the training sample to fix the tunning parameters (when needed) and to estimate the model parameters (when needed).
+and the trainingsdata is used to fix the tuning parameters and estimate the model parameters. 
 
 
 ### Logistic Regression by Maximum Likelihood
@@ -85,7 +89,7 @@ response <- "spam.01"
 explanatory <-
   colnames(spam_train)[colnames(spam_train) != response]
 # Logistic regression by maximum likelihood
-glm_spam <-
+ML_glm_spam <-
   glm(spam_train$spam.01 ~ ., family = binomial(link = "logit"), data = spam_train)
 ```
 
@@ -94,10 +98,10 @@ glm_spam <-
 library(glmnet)
 library(Matrix)
 
-glmnet_spam <-
+Lasso_glmnet_spam <-
   glmnet(as.matrix(spam_train[, explanatory]), spam_train$spam.01, family = "binomial")
 
-cv_glmnet_spam <-
+Lasso_cv_glmnet_spam <-
   cv.glmnet(as.matrix(spam_train[, explanatory]), spam_train$spam.01, family = "binomial")
 ```
 
@@ -107,33 +111,39 @@ cv_glmnet_spam <-
 # KNN binary regression 
 library(class)
 
+#### WHY DO WE USE THE DEFAULT K= 1
+
 cl <- factor(c(rep("0", sum(spam_train$spam.01 == 0)), rep("1", sum(spam_train$spam.01 == 1))))
-knn_spam <- knn(spam_train, spam_test, cl, prob = TRUE)
+knn_spam <- knn(spam_train, spam_test, cl, k = 10, prob = TRUE)
 cv_knn_spam <- knn.cv(spam_train, cl, k=1)
 ```
 
 
 ## 4. Use the test sample to compute and plot the ROC curve for each rule.
+
+Now the test sample is used to compute the ROC curve for each rule. 
+
 ROC curve: y-axis Sensitivity
             x-axis 1-Specificity
             
 Sensitivity: Probability of classifying correctly a positive
 case: TRUE POSITIVE.
 Specificity: Probability of classifying correctly a negative case.
+
 ### ROC curve for GLM
 ```{r}
 library(ROCR)
 # Complicated version:
-glm_pred <- predict(glm_spam, newdata = spam_test)
-glm_prediction <- prediction(glm_pred, spam_test$spam.01)
-glm_performance <- performance(glm_prediction, "sens", "spec")
+ML_glm_pred <- predict(ML_glm_spam, newdata = spam_test)
+ML_glm_prediction <- prediction(ML_glm_pred, spam_test$spam.01)
+ML_glm_performance <- performance(ML_glm_prediction, "sens", "spec")
 ```
 
 ### ROC curve for glmnet
 ```{r}
-glmnet_pred <- predict(cv_glmnet_spam, newx = as.matrix(spam_test[, explanatory]), type = "response")
-glmnet_prediction <- prediction(glmnet_pred, spam_test$spam.01)
-glmnet_performance <- performance(glmnet_prediction, "sens", "spec")
+Lasso_glmnet_pred <- predict(Lasso_cv_glmnet_spam, newx = as.matrix(spam_test[, explanatory]), type = "response")
+Lasso_glmnet_prediction <- prediction(Lasso_glmnet_pred, spam_test$spam.01)
+Lasso_glmnet_performance <- performance(Lasso_glmnet_prediction, "sens", "spec")
 ```
 
 ### ROC curve for KNN
@@ -154,13 +164,13 @@ knn_performance <- performance(knn_prediction, "sens", "spec")
 
 ### Plot ROC curves for each rule
 ```{r}
-plot(glm_performance, col = "red")
-plot(glmnet_performance, add = TRUE, col = "green")
+plot(ML_glm_performance, col = "red")
+plot(Lasso_glmnet_performance, add = TRUE, col = "green")
 plot(knn_performance, add = TRUE, col = "black")
-legend("bottomleft", legend("GLM", "GLMNET", "KNN"), col = c("red", "green", "black"))
+legend(x="bottomleft", legend("GLM", "GLMNET", "KNN"), col = c("red", "green", "black"))
 ```
 
-
+As one can see the both the regression using Maximum Likelihood and the one using Lasso are very similar as well as having a high sensitivity ans specificity rate. Knn however is doing a rather bad job wich could imply some error in our coding.
 
 
 ## 5. Compute also the misclassification rate for each rule when using the cut point c = 1/2.
@@ -169,24 +179,30 @@ legend("bottomleft", legend("GLM", "GLMNET", "KNN"), col = c("red", "green", "bl
 c = 1/2
 library(shipunov)
 
-# GLM 
-class_glm <- as.numeric(ifelse(glm_pred > 0.5,
+# ML GLM 
+print("Maximum Likelihood")
+class_ML_glm <- as.numeric(ifelse(ML_glm_pred > 0.5,
                            "1", "0"))
 
-MCR_glm <- Misclass(class_glm, spam_test$spam.01)
+MCR_ML_glm <- Misclass(class_ML_glm, spam_test$spam.01)
 
-# GLMNET
-class_glmnet <- as.numeric(ifelse(glmnet_pred > 0.5,
+# Lasso GLMNET
+print("Lasso")
+class_Lasso_glmnet <- as.numeric(ifelse(Lasso_glmnet_pred > 0.5,
                            "1", "0"))
 
-MCR_glmnet <- Misclass(class_glmnet, spam_test$spam.01)
+MCR_Lasso_glmnet <- Misclass(class_Lasso_glmnet, spam_test$spam.01)
 
 # KNN 
+print("KNN")
 class_knn <- as.numeric(ifelse(knn_pred > 0.5,
                            "1", "0"))
 
 MCR_knn <- Misclass(class_knn, spam_test$spam.01)
 ```
+
+Again we can see that the Maximim likelihood and the Lasso regreassion are similar. The regression using Maximum likelihood has a slightly lower rate for missclasification spam emails as non spam while the Lasso regression has a lower rate for classifying non spam as spam mail.
+
 
 ### Plot the Misclassification Error Rates for each rule
 ```{r}
@@ -197,6 +213,7 @@ MCR_knn <- Misclass(class_knn, spam_test$spam.01)
 
 ## 6. Compute $l_{val}$ for each rule.
 
+
 ```{r}
 likelihood <- function(test, y, MCR) {
   prob <- (MCR[2,1] + MCR[2,2])/nrow(test)
@@ -205,11 +222,14 @@ likelihood <- function(test, y, MCR) {
 }
 
 # GLM
-l_val_glm <- likelihood(spam_test, spam_test$spam.01, MCR_glm)
+l_val_glm <- likelihood(spam_test, spam_test$spam.01, MCR_ML_glm)
+l_val_glm
+exp(l_val_glm)
 
 # GLMNET
-l_val_glmnet <- likelihood(spam_test, spam_test$spam.01, MCR_glmnet)
-
+l_val_glmnet <- likelihood(spam_test, spam_test$spam.01, MCR_Lasso_glmnet)
+l_val_glmnet
+exp(l_val_glmnet)
 # KNN
 l_val_knn <- likelihood(spam_test, spam_test$spam.01, MCR_knn)
 ```
