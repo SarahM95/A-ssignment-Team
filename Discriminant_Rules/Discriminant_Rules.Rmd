@@ -111,11 +111,21 @@ Lasso_cv_glmnet_spam <-
 # KNN binary regression 
 library(class)
 
+#changed so we only give the data not the response
 #### WHY DO WE USE THE DEFAULT K= 1
 
 cl <- factor(c(rep("0", sum(spam_train$spam.01 == 0)), rep("1", sum(spam_train$spam.01 == 1))))
-knn_spam <- knn(spam_train, spam_test, cl, k = 10, prob = TRUE)
-cv_knn_spam <- knn.cv(spam_train, cl, k=1)
+knn_spam <- knn(spam_train[, explanatory], spam_test[, explanatory], cl = cl, k = 10, prob = TRUE)
+
+#Extracting classification
+knn_classification<-(knn_spam[1:1535])
+knn_classification
+#attributes(knn_spam)
+
+
+#WHY DO WE NEED THIS ONE? 
+cv_knn_spam <- knn.cv(spam_train[, explanatory], cl, k=10)
+
 ```
 
 
@@ -139,11 +149,23 @@ ML_glm_prediction <- prediction(ML_glm_pred, spam_test$spam.01)
 ML_glm_performance <- performance(ML_glm_prediction, "sens", "spec")
 ```
 
+
 ### ROC curve for glmnet
 ```{r}
 Lasso_glmnet_pred <- predict(Lasso_cv_glmnet_spam, newx = as.matrix(spam_test[, explanatory]), type = "response")
 Lasso_glmnet_prediction <- prediction(Lasso_glmnet_pred, spam_test$spam.01)
 Lasso_glmnet_performance <- performance(Lasso_glmnet_prediction, "sens", "spec")
+```
+
+
+```{r}
+#alternative for knn
+knn_clas <- ifelse(knn_classification == "1", 0, 1) #WHY DOES IT NOT MATTER WHAT I SET TO 1 AND WHAT TO 0? 
+#knn_clas
+#spam_test$spam.01
+knn_roc <- roc(predictor = knn_clas, response = spam_test$spam.01)
+knn_roc
+plot(knn_roc)
 ```
 
 ### ROC curve for KNN
@@ -155,7 +177,9 @@ library(knnflex)
 #knn_dist <- knn.dist(spam)
 #knn_pred <- knn.predict(spam_train, spam_test, y = spam.01, knn_dist, k=3)
 prob <- attr(knn_spam, "prob")
+
 knn_pred <- ifelse(knn_spam == "-1", 1-prob, prob) - 1
+knn_pred
 
 cl_test <- factor(c(rep("0", sum(spam_test$spam.01 == 0)), rep("1", sum(spam_test$spam.01 == 1))))
 knn_prediction <- prediction(knn_pred, cl_test)
@@ -166,7 +190,7 @@ knn_performance <- performance(knn_prediction, "sens", "spec")
 ```{r}
 plot(ML_glm_performance, col = "red")
 plot(Lasso_glmnet_performance, add = TRUE, col = "green")
-plot(knn_performance, add = TRUE, col = "black")
+plot(knn_roc, add = TRUE, col = "black")
 legend(x="bottomleft", legend("GLM", "GLMNET", "KNN"), col = c("red", "green", "black"))
 ```
 
