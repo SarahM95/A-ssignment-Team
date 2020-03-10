@@ -81,6 +81,7 @@ and the trainingsdata is used to fix the tuning parameters and estimate the mode
 response <- "spam.01"
 explanatory <-
   colnames(spam_train)[colnames(spam_train) != response]
+
 # Logistic regression by maximum likelihood
 ML_glm_spam <-
   glm(spam_train$spam.01 ~ ., family = binomial(link = "logit"), data = spam_train)
@@ -105,12 +106,11 @@ Lasso_cv_glmnet_spam <-
 library(class)
 library(shipunov)
 
-<<<<<<< HEAD
 cv_knn <- list()
 misclass <- list()
 
 for(k in 1:100){
-  cv_knn[[k]] <- as.numeric(knn.cv(spam_train[, explanatory], cl, k=k))-1
+  cv_knn[[k]] <- as.numeric(knn.cv(spam_train[, explanatory], cl = spam_train$spam.01, k=k))-1
   tmp <- as.numeric(spam_train$spam.01) - cv_knn[[k]]
   tmp_MCR <- Misclass(cv_knn[[k]], spam_train$spam.01, quiet = TRUE, best = TRUE)
   misclass[[k]] <- mean(tmp_MCR[1,2]/(tmp_MCR[1,2]+tmp_MCR[2,2]), tmp_MCR[2,1]/(tmp_MCR[2,1]+tmp_MCR[1,1]))
@@ -128,16 +128,6 @@ knn_spam <- knn(spam_train[, explanatory], spam_test[, explanatory], cl = cl, k 
 knn_classification<-(knn_spam[1:1535])
 knns <- as.numeric(knn_spam)-1
 prob <- attr(knn_spam,"prob")*knns + (1-attr(knn_spam,"prob"))*(1-knns)
-=======
-cl <- as.factor(spam_train[, response])
-knn_spam <- knn(spam_train[, explanatory], spam_test[, explanatory], cl = cl, k = 1, prob = TRUE)
-
-
-
-
-#WHY DO WE NEED THIS ONE? 
-cv_knn_spam <- knn.cv(spam_train[, explanatory], cl, k=10)
->>>>>>> fecdc88e313e94e81d369b844937a2d85e0d958c
 ```
 
 
@@ -156,7 +146,7 @@ Specificity: Probability of classifying correctly a negative case.
 ```{r}
 library(ROCR)
 library(gplots)
-# Complicated version:
+
 ML_glm_pred <- predict(ML_glm_spam, newdata = spam_test)
 ML_glm_prediction <- prediction(ML_glm_pred, spam_test$spam.01)
 ML_glm_performance <- performance(ML_glm_prediction, "sens", "spec")
@@ -180,7 +170,6 @@ prob <- attr(knn_spam,"prob")*knns + (1-attr(knn_spam,"prob"))*(1-knns)
 
 knn_prediction<- prediction(prob, spam_test$spam.01)
 knn_preformance <- performance(knn_prediction, "sens", "spec")
-
 ```
 
 
