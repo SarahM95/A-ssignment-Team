@@ -57,11 +57,13 @@ and $1/3$ of both the spam ans the non spam emails in each group. Tho achieve th
 Before continuing the trainingset is shuffeld. 
 
 ```{r}
-ind_train_spam <- as.numeric(sample(rownames(spam[spam$spam.01 == 1,]), 2 / 3 * nrow(spam[spam$spam.01 == 1,])))
-ind_train_nospam <- as.numeric(sample(rownames(spam[spam$spam.01 == 0,]), 2 / 3 * nrow(spam[spam$spam.01 == 0,])))
+ind_train_spam <-
+  as.numeric(sample(rownames(spam[spam$spam.01 == 1, ]), 2 / 3 * nrow(spam[spam$spam.01 == 1, ])))
+ind_train_nospam <-
+  as.numeric(sample(rownames(spam[spam$spam.01 == 0, ]), 2 / 3 * nrow(spam[spam$spam.01 == 0, ])))
 
-spam_train <- spam[sample(c(ind_train_spam, ind_train_nospam)),]
-spam_test <- spam[-(c(ind_train_spam, ind_train_nospam)),]
+spam_train <- spam[sample(c(ind_train_spam, ind_train_nospam)), ]
+spam_test <- spam[-(c(ind_train_spam, ind_train_nospam)), ]
 ```
 
 
@@ -84,13 +86,15 @@ explanatory <-
 
 # Logistic regression by maximum likelihood
 ML_glm_spam <-
-  glm(spam_train$spam.01 ~ ., family = binomial(link = "logit"), data = spam_train)
+  glm(spam_train$spam.01 ~ .,
+      family = binomial(link = "logit"),
+      data = spam_train)
 ```
 
 ### Logistic Regression by Lasso
 ```{r}
 library(glmnet)
-library(Matrix) 
+library(Matrix)
 
 Lasso_glmnet_spam <-
   glmnet(as.matrix(spam_train[, explanatory]), spam_train$spam.01, family = "binomial")
@@ -102,32 +106,50 @@ Lasso_cv_glmnet_spam <-
 
 ### KNN binary regression
 ```{r}
-# KNN binary regression 
+# KNN binary regression
 library(class)
 library(shipunov)
 
 cv_knn <- list()
 misclass <- list()
 
-for(k in 1:100){
-  cv_knn[[k]] <- as.numeric(knn.cv(spam_train[, explanatory], cl = spam_train$spam.01, k=k))-1
+for(k in 1:100) {
+  cv_knn[[k]] <-
+    as.numeric(knn.cv(spam_train[, explanatory], cl = spam_train$spam.01, k =
+                        k)) - 1
   tmp <- as.numeric(spam_train$spam.01) - cv_knn[[k]]
-  tmp_MCR <- Misclass(cv_knn[[k]], spam_train$spam.01, quiet = TRUE, best = TRUE)
-  misclass[[k]] <- mean(tmp_MCR[1,2]/(tmp_MCR[1,2]+tmp_MCR[2,2]), tmp_MCR[2,1]/(tmp_MCR[2,1]+tmp_MCR[1,1]))
+  tmp_MCR <-
+    Misclass(cv_knn[[k]],
+             spam_train$spam.01,
+             quiet = TRUE,
+             best = TRUE)
+  misclass[[k]] <-
+    mean(tmp_MCR[1, 2] / (tmp_MCR[1, 2] + tmp_MCR[2, 2]),
+         tmp_MCR[2, 1] / (tmp_MCR[2, 1] + tmp_MCR[1, 1]))
 }
 
 k = which(misclass == do.call(min, misclass))[1]
-plot(1:100, do.call(cbind,misclass), xlab = "k classes", ylab = "Misclassification Error Rate")
+plot(1:100,
+     do.call(cbind, misclass),
+     xlab = "k classes",
+     ylab = "Misclassification Error Rate"
+)
 ```
 
 ```{r}
 cl <- as.factor(spam_train[, response])
-knn_spam <- knn(spam_train[, explanatory], spam_test[, explanatory], cl = cl, k = k, prob = TRUE)
+knn_spam <-
+  knn(spam_train[, explanatory],
+      spam_test[, explanatory],
+      cl = cl,
+      k = k,
+      prob = TRUE)
 
 #Extracting classification
-knn_classification<-(knn_spam[1:1535])
-knns <- as.numeric(knn_spam)-1
-prob <- attr(knn_spam,"prob")*knns + (1-attr(knn_spam,"prob"))*(1-knns)
+knn_classification <- (knn_spam[1:1535])
+knns <- as.numeric(knn_spam) - 1
+prob <-
+  attr(knn_spam, "prob") * knns + (1 - attr(knn_spam, "prob")) * (1 - knns)
 ```
 
 
@@ -155,9 +177,14 @@ ML_glm_performance <- performance(ML_glm_prediction, "sens", "spec")
 
 ### ROC curve for glmnet
 ```{r}
-Lasso_glmnet_pred <- predict(Lasso_cv_glmnet_spam, newx = as.matrix(spam_test[, explanatory]), type = "response")
-Lasso_glmnet_prediction <- prediction(Lasso_glmnet_pred, spam_test$spam.01)
-Lasso_glmnet_performance <- performance(Lasso_glmnet_prediction, "sens", "spec")
+Lasso_glmnet_pred <-
+  predict(Lasso_cv_glmnet_spam,
+          newx = as.matrix(spam_test[, explanatory]),
+          type = "response")
+Lasso_glmnet_prediction <-
+  prediction(Lasso_glmnet_pred, spam_test$spam.01)
+Lasso_glmnet_performance <-
+  performance(Lasso_glmnet_prediction, "sens", "spec")
 ```
 
 
@@ -165,10 +192,11 @@ Lasso_glmnet_performance <- performance(Lasso_glmnet_prediction, "sens", "spec")
 ```{r}
 library(pROC)
 
-knns <- as.numeric(knn_spam)-1
-prob <- attr(knn_spam,"prob")*knns + (1-attr(knn_spam,"prob"))*(1-knns)
+knns <- as.numeric(knn_spam) - 1
+prob <-
+  attr(knn_spam, "prob") * knns + (1 - attr(knn_spam, "prob")) * (1 - knns)
 
-knn_prediction<- prediction(prob, spam_test$spam.01)
+knn_prediction <- prediction(prob, spam_test$spam.01)
 knn_preformance <- performance(knn_prediction, "sens", "spec")
 ```
 
@@ -176,9 +204,16 @@ knn_preformance <- performance(knn_prediction, "sens", "spec")
 ### Plot ROC curves for each rule
 ```{r}
 plot(ML_glm_performance, col = "red", lwd = 2)
-plot(Lasso_glmnet_performance, add = TRUE, col = "blue", lwd = 2)
+plot(
+  Lasso_glmnet_performance,
+  add = TRUE,
+  col = "blue",
+  lwd = 2
+)
 plot(knn_preformance, add = TRUE, col = "black")
-legend("bottomleft", c("GLM", "GLMNET", "KNN"), fill = c("red", "blue", "black"))
+legend("bottomleft",
+       c("GLM", "GLMNET", "KNN"),
+       fill = c("red", "blue", "black"))
 ```
 
 As one can see the both the regression using Maximum Likelihood and the one using Lasso are very similar as well as having a high sensitivity ans specificity rate. Knn however is not doing equally good but the trend is similar.
@@ -187,14 +222,14 @@ As one can see the both the regression using Maximum Likelihood and the one usin
 ## 5. Compute also the misclassification rate for each rule when using the cut point c = 1/2.
 
 ```{r}
-c = 1/2
+c = 1 / 2
 library(shipunov)
 ```
 
 Misclasification rate for the logistig regression using Maximum likelihood.
 ```{r}
 class_ML_glm <- as.numeric(ifelse(ML_glm_pred > c,
-                           "1", "0"))
+                                  "1", "0"))
 
 MCR_ML_glm <- Misclass(class_ML_glm, spam_test$spam.01)
 ```
@@ -203,7 +238,7 @@ Misclasification rate for the logistig regression using Lasso.
 
 ```{r}
 class_Lasso_glmnet <- as.numeric(ifelse(Lasso_glmnet_pred > c,
-                           "1", "0"))
+                                        "1", "0"))
 
 MCR_Lasso_glmnet <- Misclass(class_Lasso_glmnet, spam_test$spam.01)
 ```
@@ -220,18 +255,18 @@ Again we can see that the Maximim likelihood and the Lasso regreassion are simil
 ## 6. Compute $l_{val}$ for each rule.
 ```{r}
 likelihood <- function(test, y, MCR) {
-  prob <- (MCR[2,1] + MCR[2,2])/nrow(test)
-  l_val <- 1/nrow(test) * sum(y * log(prob) + (1-y) * log(1-prob))
+  prob <- (MCR[2, 1] + MCR[2, 2]) / nrow(test)
+  l_val <- 1 / nrow(test) * sum(y * log(prob) + (1 - y) * log(1 - prob))
   return(l_val)
 }
 
 # GLM
 (l_val_glm <- likelihood(spam_test, spam_test$spam.01, MCR_ML_glm))
 # GLMNET
-(l_val_glmnet <- likelihood(spam_test, spam_test$spam.01, MCR_Lasso_glmnet))
+(l_val_glmnet <-
+    likelihood(spam_test, spam_test$spam.01, MCR_Lasso_glmnet))
 # KNN
 (l_val_knn <- likelihood(spam_test, spam_test$spam.01, MCR_knn))
-
 ```
 
 The model that gives the highest log likelihood is the one using Lasso. 
