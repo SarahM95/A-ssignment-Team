@@ -66,8 +66,6 @@ ind_train_nospam <- as.numeric(sample(rownames(spam[spam$spam.01 == 0,]), 2 / 3 
 
 spam_train <- spam[sample(c(ind_train_spam, ind_train_nospam)),]
 spam_test <- spam[-(c(ind_train_spam, ind_train_nospam)),]
-
-
 ```
 
 
@@ -109,28 +107,30 @@ Lasso_cv_glmnet_spam <-
 ```{r}
 # KNN binary regression 
 library(class)
+library(shipunov)
 
-#changed so we only give the data not the response
-#### WHY DO WE USE THE DEFAULT K= 1, what would you use instead? It wasn´t specified in the question, so the default should be fine.
+cv_knn <- list()
+misclass <- list()
 
-#cl <- factor(c(rep("0", sum(spam_train$spam.01 == 0)), rep("1", sum(spam_train$spam.01 == 1))))
+for(k in 1:100){
+  cv_knn[[k]] <- as.numeric(knn.cv(spam_train[, explanatory], cl, k=k))-1
+  tmp <- as.numeric(spam_train$spam.01) - cv_knn[[k]]
+  tmp_MCR <- Misclass(cv_knn[[k]], spam_train$spam.01, quiet = TRUE, best = TRUE)
+  misclass[[k]] <- mean(tmp_MCR[1,2]/(tmp_MCR[1,2]+tmp_MCR[2,2]), tmp_MCR[2,1]/(tmp_MCR[2,1]+tmp_MCR[1,1]))
+}
 
+k = which(misclass == do.call(min, misclass))[1]
+plot(1:100, do.call(cbind,misclass), xlab = "k classes", ylab = "Misclassification Error Rate")
+```
+
+```{r}
 cl <- as.factor(spam_train[, response])
-knn_spam <- knn(spam_train[, explanatory], spam_test[, explanatory], cl = cl, k = 10, prob = TRUE)
+knn_spam <- knn(spam_train[, explanatory], spam_test[, explanatory], cl = cl, k = k, prob = TRUE)
 
 #Extracting classification
 knn_classification<-(knn_spam[1:1535])
 knns <- as.numeric(knn_spam)-1
 prob <- attr(knn_spam,"prob")*knns + (1-attr(knn_spam,"prob"))*(1-knns)
-
-
-
-#knn_classification
-#attributes(knn_spam)
-
-
-#WHY DO WE NEED THIS ONE? 
-cv_knn_spam <- knn.cv(spam_train[, explanatory], cl, k=10)
 ```
 
 
