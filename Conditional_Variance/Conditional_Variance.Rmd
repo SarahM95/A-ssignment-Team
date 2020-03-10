@@ -15,13 +15,12 @@ library(sm)
 
 data(aircraft)
 help(aircraft)
-attach(aircraft)
-lgPower <- log(Power)
-lgSpan <- log(Span)
-lgLength <- log(Length)
-lgWeight <- log(Weight)
-lgSpeed <- log(Speed)
-lgRange <- log(Range)
+aircraft$lgPower <- log(Power)
+aircraft$lgSpan <- log(Span)
+aircraft$lgLength <- log(Length)
+aircraft$lgWeight <- log(Weight)
+aircraft$lgSpeed <- log(Speed)
+aircraft$lgRange <- log(Range)
 ```
 
 
