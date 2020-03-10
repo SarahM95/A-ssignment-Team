@@ -1,0 +1,231 @@
+---
+title: "Bandwidth Choice for Linear Smoothers"
+author: "Pedro Delicado"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    number_sections: yes
+  html_notebook: 
+    default
+  pdf_document:
+    fig_caption: yes
+    number_sections: yes
+classoption: a4paper
+---
+<!-- Comment lines are like this one -->
+<!-- Use "\newpage" when you want a new page break in the pdf output  -->
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+# Bandwidth choice using libraries sm and KernSmooth
+
+We will be working with the file `HDI.2017.subset.csv` containing information on development indicators measured in 179 countries (Source: [Human Development Data (1990-2017)](http://hdr.undp.org/en/data), The Human Development Report Office, United Nations).
+
+This file contains the following variables:
+
+* `Life.expec` Life expectancy at birth.
+* `Life.expec.f` Life expectancy at birth for females.
+* `Life.expec.m` Life expectancy at birth for males.
+* `le.fm` Difference `Life.expec.f` minus `Life.expec.m`.
+* `Inf.Mort.rat` Infant mortality rate: The annual number of deaths of infants under one year of age per 1,000 live births in the same year.
+* `Agric.employ.%` Employment in agriculture (% of total employment).
+
+
+```{r}
+countries<-read.csv2(file="HDI.2017.subset.csv",row.names = 1)
+attach(countries)
+head(countries)
+```
+
+```{r}
+summary(countries)
+```
+
+Matrix of scatterplots
+```{r}
+plot(countries[,2:7])
+```
+
+```{r}
+plot(x=log(Agric.employ..),y=Life.expec)
+```
+
+```{r,message=FALSE}
+library(sm)
+sm.regression(x=log(Agric.employ..),y=Life.expec,h=.3)
+```
+
+Choosing the bandwidth by different criteria:
+```{r}
+h.cv <- h.select(x=log(Agric.employ..),y=Life.expec,method="cv")
+h.df <- h.select(x=log(Agric.employ..),y=Life.expec,method="df")
+```
+
+```{r,message=FALSE,warning=FALSE}
+library(KernSmooth)
+h.dpill <- dpill(x=log(Agric.employ..),y=Life.expec,gridsize=101,
+                 range.x=range(log(Agric.employ..)))
+
+print(c(h.cv,h.df,h.dpill))
+```
+
+```{r,message=FALSE,warning=FALSE}
+sm.regression(x=log(Agric.employ..),y=Life.expec,h=h.dpill)
+```
+
+
+# Write your own bandwidth choice function
+
+Write an R function implementing the following bandwidth choice criteria:
+leave-one-out ($PMSE_{CV}(h)$), 
+generalized cross-validation ($PMSE_{GCV}(h)$),
+5-fold cross-validation ($PMSE_{5-CV}(h)$), and 
+10-fold cross-validation ($PMSE_{10-CV}(h)$).
+You can use function `locpolreg` to obtain the smoothing matrix $S$. 
+
+* **Input:** Vectors $x$ and $y$; a vector `h.v` of candidate values for $h$.
+* **Output:** For each element $h$ in `h.v`, the value of 
+$PMSE_{CV}(h)$,  
+$PMSE_{GCV}(h)$,
+$PMSE_{5-CV}(h)$, 
+$PMSE_{10-CV}(h)$.
+Additionally you can plot these values against $\log(h)$ in the same graphic.
+
+## Ordinary and Generalized Cross-Validation
+
+```{r}
+h.cv.gcv <- function(x,y,h.v = exp(seq(log(diff(range(x))/20),
+                                       log(diff(range(x))/4),l=10)), 
+                     p=1,type.kernel="normal"){
+  n <- length(x)
+  cv <- h.v*0
+  gcv <- h.v*0
+  for (i in (1:length(h.v))){
+    h <- h.v[i]
+    aux <- locpolreg(x=x,y=y,h=h,p=p,tg=x,
+                     type.kernel=type.kernel, doing.plot=FALSE)
+    S <- aux$S
+    h.y <- aux$mtgr
+    hii <- diag(S)
+    av.hii <- mean(hii)
+    cv[i] <- sum(((y-h.y)/(1-hii))^2)/n
+    gcv[i] <- sum(((y-h.y)/(1-av.hii))^2)/n
+  }
+  return(list(h.v=h.v,cv=cv,gcv=gcv))
+}
+```
+
+## k-Fold Cross-Validation
+```{r}
+k.fold.cv <- function(x,y,k=10,h=range(x)/10,p=1,type.kernel="normal"){
+  n <- length(x)
+  Ik <- floor((0:(n-1))/(n/k))+1
+  ssr <- 0
+  for (i in (1:k)){
+    y.i <- y[Ik==i]
+    aux <- locpolreg(x[Ik!=i],y[Ik!=i],h=h,p=p,tg=x[Ik==i],
+                     type.kernel=type.kernel, doing.plot=FALSE)
+    ssr <- ssr + sum((y.i-aux$mtgr)^2)
+  }
+  k.cv <- ssr/n
+  return(k.cv)
+}
+
+h.k.fold.cv <- function(x,y,h.v = exp(seq(log(diff(range(x))/20),
+                                          log(diff(range(x))/4),l=10)), 
+                        k=10,p=1,type.kernel="normal"){
+  n <- length(x)
+  perm <- sample(1:n)
+  xperm <- x[perm]
+  yperm <- y[perm]
+  
+  k.cv <- h.v*0
+  for (i in (1:length(h.v))){
+    h <- h.v[i]
+    k.cv[i] <- k.fold.cv(x=xperm,y=yperm,k=k,h=h,p=p,
+                         type.kernel=type.kernel)
+  }
+  return(list(k=k,h.v=h.v,k.cv=k.cv))
+}
+```
+
+## Boston data
+
+For the Boston Housing dataset, in the nonparametric regression of `ROOM` against `LSTAT`, use your preceding function to choose the bandwidth $h$ by the four criteria. As vector of candidates values for $h$ take
+
+`exp( seq(from=log(.5), to = log(15), length=12) )`
+
+Compare your results with those provided by function `h.select` (package **sm**) and `dpill` (package **KernSmooth**).
+
+```{r, echo=FALSE, message=FALSE,results='hide'}
+load("boston.Rdata")
+names(boston.c)[13]<-'ROOM'
+# names(boston.c)
+# [1] "TOWN"    "TOWNNO"  "TRACT"   "LON"     "LAT"     "MEDV"    "CMEDV"  
+# [8] "CRIM"    "ZN"      "INDUS"   "CHAS"    "NOX"     "ROOM"      "AGE" 
+#[15] "DIS"     "RAD"     "TAX"     "PTRATIO" "B"       "LSTAT"  
+attach(boston.c)
+```
+
+```{r}
+source("locpolreg.R")
+
+#h.v = exp(seq(log(diff(range(LSTAT))/30),log(diff(range(LSTAT))/5),l=10))
+h.v <-  exp( seq(from=log(.5), to = log(15), length=12))
+
+#for using "epan":
+#h.v = exp(seq(log(diff(range(LSTAT))/10),log(diff(range(LSTAT))/4),l=10))
+
+out.cv.gcv <- h.cv.gcv(x=LSTAT, y=ROOM, h.v=h.v)
+out.5.cv <- h.k.fold.cv(x=LSTAT, y=ROOM, h.v=h.v, k=5)
+out.10.cv <- h.k.fold.cv(x=LSTAT, y=ROOM, h.v=h.v, k=10)
+
+y.max <- max(c(out.cv.gcv$cv,out.cv.gcv$gcv,out.5.cv$k.cv,out.10.cv$k.cv))
+y.min <- min(c(out.cv.gcv$cv,out.cv.gcv$gcv,out.5.cv$k.cv,out.10.cv$k.cv))
+
+plot(h.v,out.cv.gcv$cv,ylim=c(y.min,y.max),ylab="estimated MSPE",
+     main="Estimated MSPE by cv")
+lines(h.v,out.cv.gcv$cv)
+
+points(h.v,out.cv.gcv$gcv,col=2)
+lines(h.v,out.cv.gcv$gcv,col=2)
+
+points(h.v,out.5.cv$k.cv,col=3)
+lines(h.v,out.5.cv$k.cv,col=3)
+
+points(h.v,out.10.cv$k.cv,col=4)
+lines(h.v,out.10.cv$k.cv,col=4)
+
+legend("bottomright",c("cv","gcv","5.fold.cv","10.fold.cv"),
+       col=1:4,lty=1,pch=1)
+
+# If you want to do ordinary CV by k-fol CV with k=n:
+#out.n.cv <- h.k.fold.cv(x=LSTAT, y=ROOM, h.v=h.v, k=length(LSTAT))
+#points(h.v,out.n.cv$k.cv,col=5)
+#lines(h.v,out.n.cv$k.cv,col=5)
+#legend("bottomright",c("cv","gcv","5.fold.cv","10.fold.cv","n.fold.cv"),
+#       col=1:5,lty=1,pch=1)
+```
+
+```{r}
+opt.h.cv <- h.v[c(which.min(out.cv.gcv$cv),which.min(out.cv.gcv$gcv),
+                  which.min(out.5.cv$k.cv),which.min(out.10.cv$k.cv))]
+
+print(opt.h.cv)
+
+require(sm) # for function "h.select"
+(h.cv.sm <- h.select(x=LSTAT, y=ROOM, method="cv"))
+
+require(KernSmooth) # for function "dpill"
+(h.dpi <- dpill(x=LSTAT,y=ROOM,gridsize=101,range.x=range(LSTAT)))
+```
+
+```{r,fig.asp=.85}
+sm.regression(x=LSTAT,y=ROOM,h=opt.h.cv[1],pch=1,cex=1,lwd=2)
+sm.regression(x=LSTAT,y=ROOM,h=h.dpi,add=TRUE,col=2,lwd=2)
+legend("topright",c("h by leave-one-out CV","h by direct plug-in"),col=c(1,2),lty=1,lwd=2)
+```
