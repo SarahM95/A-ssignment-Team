@@ -9,16 +9,6 @@ output: pdf_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## From the description file:
-The “spam” concept is diverse: advertisements for products/web sites, make money fast schemes, chain letters, pornography... Our collection of spam e- mails came from our postmaster and individuals who had filed spam. Our collection of non-spam e-mails came from filed work and personal e-mails, and hence the word ’george’ and the area code ’650’ are indicators of non-spam. These are useful when constructing a personalized spam filter. One would either have to blind such non-spam indicators or get a very wide collection of non-spam to generate a general purpose spam filter.
-
-
-## Attribute Information:
--The last column of ’spambase.data’ denotes whether the e-mail was considered spam (1) or not (0), i.e. unsolicited commercial e-mail.
--Most of the attributes indicate whether a particular word or character was frequently occurring in the e-mail.
--The run-length attributes (55-57) measure the length of sequences of consecutive capital letters.
-
-
 ## 1. Reading the data from the SPAM database using spam.R
 
 
@@ -52,7 +42,7 @@ names(spam) <- spam.names
 ## 2. Dividing data in training set and test set
 
 The data is devided into a training set and a validation set wiht respectivly $2/3$
-and $1/3$ of the data in each gorup. The aim is as well to get a proximatly $2/3$
+and $1/3$ of the data in each gorup. The aim is to get a proximatly $2/3$
 and $1/3$ of both the spam ans the non spam emails in each group. Tho achieve this we first devide the data in to spam and no spam before deviding the data further into a test and a validation set. 
 Before continuing the trainingset is shuffeld. 
 
@@ -96,15 +86,13 @@ ML_glm_spam <-
 library(glmnet)
 library(Matrix)
 
-Lasso_glmnet_spam <-
-  glmnet(as.matrix(spam_train[, explanatory]), spam_train$spam.01, family = "binomial")
-
 Lasso_cv_glmnet_spam <-
   cv.glmnet(as.matrix(spam_train[, explanatory]), spam_train$spam.01, family = "binomial")
 ```
 
 
 ### KNN binary regression
+First the optimum k is found by calculating the number of misclassifications for each k and chose the one with the lowest misclasification rate. 
 ```{r}
 # KNN binary regression
 library(class)
@@ -131,10 +119,18 @@ k = which(misclass == do.call(min, misclass))[1]
 plot(1:100,
      do.call(cbind, misclass),
      xlab = "k classes",
-     ylab = "Misclassification Error Rate"
+     ylab = "Misclassification Error Rate",
+     main = "Misclassification as a function of k"
 )
+
+
+
+k
 ```
 
+This suggests the optimum k is in fact $k=1$ which is a bit suprising. 
+
+Now the knn classification is done with the optimum k
 ```{r}
 cl <- as.factor(spam_train[, response])
 knn_spam <-
@@ -144,24 +140,13 @@ knn_spam <-
       k = k,
       prob = TRUE)
 
-#Extracting classification
-knn_classification <- (knn_spam[1:1535])
 knns <- as.numeric(knn_spam) - 1
-prob <-
-  attr(knn_spam, "prob") * knns + (1 - attr(knn_spam, "prob")) * (1 - knns)
+prob <- attr(knn_spam, "prob") * knns + (1 - attr(knn_spam, "prob")) * (1 - knns)
 ```
 
 
 ## 4. Use the test sample to compute and plot the ROC curve for each rule.
 
-Now the test sample is used to compute the ROC curve for each rule. 
-
-ROC curve: y-axis Sensitivity
-            x-axis 1-Specificity
-            
-Sensitivity: Probability of classifying correctly a positive
-case: TRUE POSITIVE.
-Specificity: Probability of classifying correctly a negative case.
 
 ### ROC curve for GLM
 ```{r}
@@ -179,7 +164,7 @@ ML_glm_performance <- performance(ML_glm_prediction, "sens", "spec")
 Lasso_glmnet_pred <-
   predict(Lasso_cv_glmnet_spam,
           newx = as.matrix(spam_test[, explanatory]),
-          type = "response")
+          type = "response", s= "lambda.min")
 Lasso_glmnet_prediction <-
   prediction(Lasso_glmnet_pred, spam_test$spam.01)
 Lasso_glmnet_performance <-
@@ -202,7 +187,7 @@ knn_preformance <- performance(knn_prediction, "sens", "spec")
 
 ### Plot ROC curves for each rule
 ```{r}
-plot(ML_glm_performance, col = "red", lwd = 2)
+plot(ML_glm_performance, col = "red", lwd = 2, main = "ROC curves")
 plot(
   Lasso_glmnet_performance,
   add = TRUE,
@@ -215,7 +200,7 @@ legend("bottomleft",
        fill = c("red", "blue", "black"))
 ```
 
-As one can see the both the regression using Maximum Likelihood and the one using Lasso are very similar as well as having a high sensitivity ans specificity rate. Knn however is not doing equally good but the trend is similar.
+As one can see the both the regression using Maximum Likelihood and the one using Lasso are very similar as well as having a high sensitivity ans specificity rate. Knn gives is worse and because of our chose of k the curve is not very smooth. This would change for different choses of k but then the misclasification rate becomes worse. 
 
 
 ## 5. Compute also the misclassification rate for each rule when using the cut point c = 1/2.
@@ -225,7 +210,7 @@ c = 1 / 2
 library(shipunov)
 ```
 
-Misclasification rate for the logistig regression using Maximum likelihood.
+#Misclasification rate for the logistig regression using Maximum likelihood.
 ```{r}
 class_ML_glm <- as.numeric(ifelse(ML_glm_pred > c,
                                   "1", "0"))
@@ -233,7 +218,7 @@ class_ML_glm <- as.numeric(ifelse(ML_glm_pred > c,
 MCR_ML_glm <- Misclass(class_ML_glm, spam_test$spam.01)
 ```
 
-Misclasification rate for the logistig regression using Lasso.
+#Misclasification rate for the logistig regression using Lasso.
 
 ```{r}
 class_Lasso_glmnet <- as.numeric(ifelse(Lasso_glmnet_pred > c,
@@ -242,13 +227,13 @@ class_Lasso_glmnet <- as.numeric(ifelse(Lasso_glmnet_pred > c,
 MCR_Lasso_glmnet <- Misclass(class_Lasso_glmnet, spam_test$spam.01)
 ```
 
-Misclasification rate for the logistig regression using knn.
+#Misclasification rate for the logistig regression using knn.
 ```{r}
 class_knn <- as.numeric(ifelse(prob >= c, "1", "0"))
 MCR_knn <- Misclass(class_knn, spam_test$spam.01)
 ```
 
-Again we can see that the Maximim likelihood and the Lasso regreassion are similar although Lasso has a slightly smaller misclassification. The regression using Maximum likelihood has a slightly lower rate for missclasification spam emails as non spam while the Lasso regression has a lower rate for classifying non spam as spam mail.
+Again we can see that the Maximim likelihood and the Lasso regreassion are similar although Lasso has a slightly smaller misclassification. The regression using Maximum likelihood has a slightly lower rate for missclasification spam emails as non spam while the Lasso regression has a lower rate for classifying non spam as spam mail. The knn is worse in every way. 
 
 
 ## 6. Compute $l_{val}$ for each rule.
@@ -260,12 +245,15 @@ likelihood <- function(test, y, MCR) {
 }
 
 # GLM
+print("ML")
 (l_val_glm <- likelihood(spam_test, spam_test$spam.01, MCR_ML_glm))
 # GLMNET
+print("Lasso")
 (l_val_glmnet <-
     likelihood(spam_test, spam_test$spam.01, MCR_Lasso_glmnet))
 # KNN
+print("KNN")
 (l_val_knn <- likelihood(spam_test, spam_test$spam.01, MCR_knn))
 ```
 
-The model that gives the highest log likelihood is the one using Lasso. 
+The model that gives the highest log likelihood is the one using Lasso which corresponds the comparing of misclassification errors. 
