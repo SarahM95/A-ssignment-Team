@@ -113,11 +113,18 @@ library(class)
 #changed so we only give the data not the response
 #### WHY DO WE USE THE DEFAULT K= 1, what would you use instead? It wasn´t specified in the question, so the default should be fine.
 
-cl <- factor(c(rep("0", sum(spam_train$spam.01 == 0)), rep("1", sum(spam_train$spam.01 == 1))))
+#cl <- factor(c(rep("0", sum(spam_train$spam.01 == 0)), rep("1", sum(spam_train$spam.01 == 1))))
+
+cl <- as.factor(spam_train[, response])
 knn_spam <- knn(spam_train[, explanatory], spam_test[, explanatory], cl = cl, k = 10, prob = TRUE)
 
 #Extracting classification
 knn_classification<-(knn_spam[1:1535])
+knns <- as.numeric(knn_spam)-1
+prob <- attr(knn_spam,"prob")*knns + (1-attr(knn_spam,"prob"))*(1-knns)
+
+
+
 #knn_classification
 #attributes(knn_spam)
 
@@ -160,12 +167,16 @@ Lasso_glmnet_performance <- performance(Lasso_glmnet_prediction, "sens", "spec")
 ```{r}
 library(pROC)
 
+
+knn_prediction<- prediction(prob, spam_test$spam.01)
+knn_preformance <- performance(knn_prediction, "sens", "spec")
 #alternative for knn
-knn_clas <- ifelse(knn_classification == "1", 0, 1) #WHY DOES IT NOT MATTER WHAT I SET TO 1 AND WHAT TO 0? 
+#knn_clas <- ifelse(prod == "1", 0, 1) 
+
 #knn_clas
 #spam_test$spam.01
-knn_roc <- roc(predictor = knn_clas, response = spam_test$spam.01)
-plot(knn_roc)
+#knn_roc <- roc(predictor = knn_clas, response = spam_test$spam.01, control= 0, cases= 1)
+#plot(knn_roc)
 ```
 
 ### ROC curve for KNN
@@ -190,7 +201,7 @@ library(knnflex)
 ```{r}
 plot(ML_glm_performance, col = "red", lwd = 2)
 plot(Lasso_glmnet_performance, add = TRUE, col = "blue", lwd = 2)
-plot(knn_roc, add = TRUE, col = "black")
+plot(knn_preformance, add = TRUE, col = "black")
 legend("bottomleft", c("GLM", "GLMNET", "KNN"), fill = c("red", "blue", "black"))
 ```
 
