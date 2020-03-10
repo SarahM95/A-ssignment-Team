@@ -68,7 +68,7 @@ spam_train <- spam[c(ind_train_spam, ind_train_nospam),]
 spam_test <- spam[-c(ind_train_spam, ind_train_nospam),]
 
 
-##SHOULD WE NOT SHUFFEL THE DATA BEFORE STARTING TO WORK WITH THEM OR DOESNT IT MATTER? 
+##SHOULD WE NOT SHUFFEL THE DATA BEFORE STARTING TO WORK WITH THEM OR DOESNT IT MATTER? It doesnt matter, sample selects ransomly.
 ```
 
 
@@ -84,7 +84,7 @@ and the trainingsdata is used to fix the tuning parameters and estimate the mode
 
 
 ### Logistic Regression by Maximum Likelihood
-```{r, eval=FALSE}
+```{r}
 response <- "spam.01"
 explanatory <-
   colnames(spam_train)[colnames(spam_train) != response]
@@ -94,9 +94,9 @@ ML_glm_spam <-
 ```
 
 ### Logistic Regression by Lasso
-```{r,eval=FALSE}
+```{r}
 library(glmnet)
-library(Matrix)
+#library(Matrix) WHAT DO YOU NEED THAT FOR?
 
 Lasso_glmnet_spam <-
   glmnet(as.matrix(spam_train[, explanatory]), spam_train$spam.01, family = "binomial")
@@ -107,25 +107,24 @@ Lasso_cv_glmnet_spam <-
 
 
 ### KNN binary regression
-```{r,eval=FALSE}
+```{r}
 # KNN binary regression 
 library(class)
 
 #changed so we only give the data not the response
-#### WHY DO WE USE THE DEFAULT K= 1
+#### WHY DO WE USE THE DEFAULT K= 1, what would you use instead? It wasn´t specified in the question, so the default should be fine.
 
 cl <- factor(c(rep("0", sum(spam_train$spam.01 == 0)), rep("1", sum(spam_train$spam.01 == 1))))
 knn_spam <- knn(spam_train[, explanatory], spam_test[, explanatory], cl = cl, k = 10, prob = TRUE)
 
 #Extracting classification
 knn_classification<-(knn_spam[1:1535])
-knn_classification
+#knn_classification
 #attributes(knn_spam)
 
 
 #WHY DO WE NEED THIS ONE? 
 cv_knn_spam <- knn.cv(spam_train[, explanatory], cl, k=10)
-
 ```
 
 
@@ -159,13 +158,14 @@ Lasso_glmnet_performance <- performance(Lasso_glmnet_prediction, "sens", "spec")
 
 
 ```{r}
+library(pROC)
+
 #alternative for knn
 knn_clas <- ifelse(knn_classification == "1", 0, 1) #WHY DOES IT NOT MATTER WHAT I SET TO 1 AND WHAT TO 0? 
 #knn_clas
 #spam_test$spam.01
 knn_roc <- roc(predictor = knn_clas, response = spam_test$spam.01)
-knn_roc
-plot(knn_roc)
+#plot(knn_roc)
 ```
 
 ### ROC curve for KNN
@@ -179,7 +179,6 @@ library(knnflex)
 prob <- attr(knn_spam, "prob")
 
 knn_pred <- ifelse(knn_spam == "-1", 1-prob, prob) - 1
-knn_pred
 
 cl_test <- factor(c(rep("0", sum(spam_test$spam.01 == 0)), rep("1", sum(spam_test$spam.01 == 1))))
 knn_prediction <- prediction(knn_pred, cl_test)
@@ -188,10 +187,10 @@ knn_performance <- performance(knn_prediction, "sens", "spec")
 
 ### Plot ROC curves for each rule
 ```{r}
-plot(ML_glm_performance, col = "red")
-plot(Lasso_glmnet_performance, add = TRUE, col = "green")
+plot(ML_glm_performance, col = "red", lwd = 2)
+plot(Lasso_glmnet_performance, add = TRUE, col = "blue", lwd = 2)
 plot(knn_roc, add = TRUE, col = "black")
-legend(x="bottomleft", legend("GLM", "GLMNET", "KNN"), col = c("red", "green", "black"))
+legend("bottomleft", c("GLM", "GLMNET", "KNN"), fill = c("red", "blue", "black"))
 ```
 
 As one can see the both the regression using Maximum Likelihood and the one using Lasso are very similar as well as having a high sensitivity ans specificity rate. Knn however is doing a rather bad job wich could imply some error in our coding.
@@ -204,6 +203,7 @@ c = 1/2
 library(shipunov)
 
 # ML GLM 
+## WHY DO YOU PRINT THE NAMES?? JUST START ANOTHER SECTION?
 print("Maximum Likelihood")
 class_ML_glm <- as.numeric(ifelse(ML_glm_pred > 0.5,
                            "1", "0"))
@@ -219,7 +219,8 @@ MCR_Lasso_glmnet <- Misclass(class_Lasso_glmnet, spam_test$spam.01)
 
 # KNN 
 print("KNN")
-class_knn <- as.numeric(ifelse(knn_pred > 0.5,
+# used absolute values for classification and set less or equal to 0.5
+class_knn <- as.numeric(ifelse(abs(knn_pred) >= 0.5,
                            "1", "0"))
 
 MCR_knn <- Misclass(class_knn, spam_test$spam.01)
@@ -229,6 +230,7 @@ Again we can see that the Maximim likelihood and the Lasso regreassion are simil
 
 
 ### Plot the Misclassification Error Rates for each rule
+This was not asked in the question, we do not have to do this...
 ```{r}
 
 ```
@@ -236,8 +238,6 @@ Again we can see that the Maximim likelihood and the Lasso regreassion are simil
 
 
 ## 6. Compute $l_{val}$ for each rule.
-
-
 ```{r}
 likelihood <- function(test, y, MCR) {
   prob <- (MCR[2,1] + MCR[2,2])/nrow(test)
@@ -246,15 +246,13 @@ likelihood <- function(test, y, MCR) {
 }
 
 # GLM
-l_val_glm <- likelihood(spam_test, spam_test$spam.01, MCR_ML_glm)
-l_val_glm
+(l_val_glm <- likelihood(spam_test, spam_test$spam.01, MCR_ML_glm))
 exp(l_val_glm)
 
 # GLMNET
-l_val_glmnet <- likelihood(spam_test, spam_test$spam.01, MCR_Lasso_glmnet)
-l_val_glmnet
+(l_val_glmnet <- likelihood(spam_test, spam_test$spam.01, MCR_Lasso_glmnet))
 exp(l_val_glmnet)
 # KNN
-l_val_knn <- likelihood(spam_test, spam_test$spam.01, MCR_knn)
+(l_val_knn <- likelihood(spam_test, spam_test$spam.01, MCR_knn))
 ```
 
