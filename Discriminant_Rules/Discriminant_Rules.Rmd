@@ -117,7 +117,6 @@ for(k in 1:100) {
   cv_knn[[k]] <-
     as.numeric(knn.cv(spam_train[, explanatory], cl = spam_train$spam.01, k =
                         k)) - 1
-  tmp <- as.numeric(spam_train$spam.01) - cv_knn[[k]]
   tmp_MCR <-
     Misclass(cv_knn[[k]],
              spam_train$spam.01,
