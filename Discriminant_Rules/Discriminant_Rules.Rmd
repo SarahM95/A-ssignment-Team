@@ -64,11 +64,10 @@ and $1/3$ of both the spam ans the non spam emails in each group. Tho achieve th
 ind_train_spam <- as.numeric(sample(rownames(spam[spam$spam.01 == 1,]), 2 / 3 * nrow(spam[spam$spam.01 == 1,])))
 ind_train_nospam <- as.numeric(sample(rownames(spam[spam$spam.01 == 0,]), 2 / 3 * nrow(spam[spam$spam.01 == 0,])))
 
-spam_train <- spam[c(ind_train_spam, ind_train_nospam),]
-spam_test <- spam[-c(ind_train_spam, ind_train_nospam),]
+spam_train <- spam[sample(c(ind_train_spam, ind_train_nospam)),]
+spam_test <- spam[-(c(ind_train_spam, ind_train_nospam)),]
 
 
-##SHOULD WE NOT SHUFFEL THE DATA BEFORE STARTING TO WORK WITH THEM OR DOESNT IT MATTER? It doesnt matter, sample selects ransomly.
 ```
 
 
@@ -96,7 +95,7 @@ ML_glm_spam <-
 ### Logistic Regression by Lasso
 ```{r}
 library(glmnet)
-#library(Matrix) WHAT DO YOU NEED THAT FOR?
+library(Matrix) #WHAT DO YOU NEED THAT FOR?
 
 Lasso_glmnet_spam <-
   glmnet(as.matrix(spam_train[, explanatory]), spam_train$spam.01, family = "binomial")
@@ -142,6 +141,7 @@ Specificity: Probability of classifying correctly a negative case.
 ### ROC curve for GLM
 ```{r}
 library(ROCR)
+library(gplots)
 # Complicated version:
 ML_glm_pred <- predict(ML_glm_spam, newdata = spam_test)
 ML_glm_prediction <- prediction(ML_glm_pred, spam_test$spam.01)
@@ -165,7 +165,7 @@ knn_clas <- ifelse(knn_classification == "1", 0, 1) #WHY DOES IT NOT MATTER WHAT
 #knn_clas
 #spam_test$spam.01
 knn_roc <- roc(predictor = knn_clas, response = spam_test$spam.01)
-#plot(knn_roc)
+plot(knn_roc)
 ```
 
 ### ROC curve for KNN
@@ -176,13 +176,14 @@ library(knnflex)
 
 #knn_dist <- knn.dist(spam)
 #knn_pred <- knn.predict(spam_train, spam_test, y = spam.01, knn_dist, k=3)
-prob <- attr(knn_spam, "prob")
 
-knn_pred <- ifelse(knn_spam == "-1", 1-prob, prob) - 1
+#prob <- attr(knn_spam, "prob")
 
-cl_test <- factor(c(rep("0", sum(spam_test$spam.01 == 0)), rep("1", sum(spam_test$spam.01 == 1))))
-knn_prediction <- prediction(knn_pred, cl_test)
-knn_performance <- performance(knn_prediction, "sens", "spec")
+#knn_pred <- ifelse(knn_spam == "-1", 1-prob, prob) - 1
+
+#cl_test <- factor(c(rep("0", sum(spam_test$spam.01 == 0)), rep("1", sum(spam_test$spam.01 == 1))))
+#knn_prediction <- prediction(knn_pred, cl_test)
+#knn_performance <- performance(knn_prediction, "sens", "spec")
 ```
 
 ### Plot ROC curves for each rule
@@ -220,10 +221,11 @@ MCR_Lasso_glmnet <- Misclass(class_Lasso_glmnet, spam_test$spam.01)
 # KNN 
 print("KNN")
 # used absolute values for classification and set less or equal to 0.5
-class_knn <- as.numeric(ifelse(abs(knn_pred) >= 0.5,
-                           "1", "0"))
+#class_knn <- as.numeric(ifelse(abs(knn_pred) >= 0.5,
+  #                        "1", "0"))
 
-MCR_knn <- Misclass(class_knn, spam_test$spam.01)
+MCR_knn <- Misclass(knn_clas, spam_test$spam.01)
+#MCR_knn <- Misclass(class_knn, spam_test$spam.01)
 ```
 
 Again we can see that the Maximim likelihood and the Lasso regreassion are similar. The regression using Maximum likelihood has a slightly lower rate for missclasification spam emails as non spam while the Lasso regression has a lower rate for classifying non spam as spam mail.
@@ -254,5 +256,6 @@ exp(l_val_glm)
 exp(l_val_glmnet)
 # KNN
 (l_val_knn <- likelihood(spam_test, spam_test$spam.01, MCR_knn))
+exp(l_val_knn)
 ```
 
