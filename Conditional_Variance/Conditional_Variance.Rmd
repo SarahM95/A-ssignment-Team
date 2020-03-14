@@ -15,12 +15,12 @@ library(sm)
 
 data(aircraft)
 help(aircraft)
-aircraft$lgPower <- log(Power)
-aircraft$lgSpan <- log(Span)
-aircraft$lgLength <- log(Length)
-aircraft$lgWeight <- log(Weight)
-aircraft$lgSpeed <- log(Speed)
-aircraft$lgRange <- log(Range)
+aircraft$lgPower <- log(aircraft$Power)
+aircraft$lgSpan <- log(aircraft$Span)
+aircraft$lgLength <- log(aircraft$Length)
+aircraft$lgWeight <- log(aircraft$Weight)
+aircraft$lgSpeed <- log(aircraft$Speed)
+aircraft$lgRange <- log(aircraft$Range)
 ```
 
 
@@ -64,6 +64,12 @@ h.k.fold.cv <- function(x,y,h.v = exp(seq(log(diff(range(x))/20),
   }
   return(list(k=k,h.v=h.v,k.cv=k.cv))
 }
+
+
+
+
+
+
 ```
 
 
