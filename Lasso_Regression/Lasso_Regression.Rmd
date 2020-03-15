@@ -35,18 +35,19 @@ boston.c$CHAS <- as.numeric(boston.c$CHAS)
 
 Fitting the Lasso Regression model.
 ```{r}
+
 lasso_boston <- glmnet(x = as.matrix(boston.c[, explanatory]), 
                 y = boston.c$CMEDV,
                 alpha = 1,     # specifying alpha = 1: Lasso Regression
-                standardize = FALSE,
-                intercept = FALSE)
+                standardize = TRUE,
+                intercept = TRUE)
 lasso_boston$beta
 
 cv_lasso_boston <- cv.glmnet(x = as.matrix(boston.c[, explanatory]), 
                 y = boston.c$CMEDV,
                 alpha = 1,     # specifying alpha = 1: Lasso Regression
-                standardize = FALSE,
-                intercept = FALSE)
+                standardize = TRUE,
+                intercept = TRUE)
 cv_lasso_boston
 plot(cv_lasso_boston)
 
@@ -54,7 +55,7 @@ library(plotmo) #plot glmnet with coefficient names
 plot_glmnet(lasso_boston, s=cv_lasso_boston$lambda.min)
 ```
 
-The Lasso Estimation does variable selection automatically. This results in a model with two non-zero explanatory variables. The variables affecting the model are the full-value property tax rates ('TAX') and the proportion of blacks by town ('B'). 
+The Lasso Estimation does variable selection automatically. This results in a model with around $11$ non-zero explanatory variables and a mean square error around $23$ (changes a bit from run to run). 
 
 
 ### 1.2 Ridge Regression model using glmnet
@@ -68,9 +69,9 @@ Task description:
 ridge_boston <- glmnet(x = as.matrix(boston.c[, explanatory]), 
                 y = boston.c$CMEDV,
                 alpha = 0,    # specifying alpha = 0: Ridge Regression
-                standardize = FALSE,
-                intercept = FALSE)
-ridge_boston$beta 
+                standardize = TRUE,
+                intercept = TRUE)
+#ridge_boston$beta 
 ```
 
 The ridge regression of boston data using cv.glmnet
@@ -78,73 +79,82 @@ The ridge regression of boston data using cv.glmnet
 cv_ridge_boston <- cv.glmnet(x = as.matrix(boston.c[, explanatory]), 
                 y = boston.c$CMEDV,
                 alpha = 0,    # specifying alpha = 0: Ridge Regression
-                standardize = FALSE,
-                intercept = FALSE)
-cv_ridge_boston$glmnet.fit$beta
+                standardize = TRUE,
+                intercept = TRUE)
+#cv_ridge_boston$glmnet.fit$beta
 
 plot_glmnet(ridge_boston, s=cv_ridge_boston$lambda.min)
 ```
 
-As one can see rigde regression has a lot more non-zero expenatory variables than Lasso. However a lot of them are very close to zero. The one with the largest beta coefficients are the same as for Lasso namely $TAX$ and $B$. 
-
+As one can see rigde regression has a lot more non-zero expenatory variables than Lasso. However a lot of them are very close to zero.
 
 The 10-fold-function from previous assignment. 
 ```{r, warning=FALSE}
-PMSE_k_fold <- function(X_t, Y_t, lambda.v, k=10){
+# MSE function to be used in MSPE
+MSE <- function(Y_val, pred) {
+  return(mean((Y_val - pred)^2))
+}
 
+MSPE<- function(X_t, Y_t, lambda.v, k_number){
+  #lambda.v <- exp(seq(0,log(lambda.max+1),length=n_lambdas))-1 #remove
   n_X_t <- dim(X_t)[1]
-  p_X_t <- dim(X_t)[2] #length of columns
-  n_subset <- as.integer((n_X_t)/k)+ 1
-  group <- rep(seq(1,k), times = n_subset)
-  group <- group[1:n_X_t]
-  group_random <- sample(group)
-  X_t_group <- cbind(X_t, group_random)
-  Y_t_group <- cbind(Y_t, group_random)
-
-#now we can start:
-
-  PMSE <- list()
-
-  for (la in 1:n_lambdas){
-
-    lambda <- lambda.v[la]
+  shuffle_index <- sample(1:n_X_t, n_X_t, replace = FALSE)
+  max_in_group <- n_X_t %/% k_number
+  group_indexes <- split(shuffle_index, ceiling(seq(1:n_X_t) / max_in_group))
+  group_indexes[[k_number]] <- c(group_indexes[[k_number]], group_indexes[[k_number + 1]])
+  group_indexes[(k_number + 1)] <- NULL
+  
+  MSPE_groups <- data.frame(matrix(ncol = k_number, nrow = length(lambda.v)))
+  
+  n_lambdas <- length(lambda.v)
+  
+  for (k in 1:k_number){
+    test <- group_indexes[[k]]
+    train <- shuffle_index[!(shuffle_index %in% test)]
     
-    y_hat <- list()
-    beta <- list() 
-    h <- list()
-    y <- list()
+    #to meet assumption that the predictor variables have zero mean and unit variance 
+    #and the response variables have zero mean
 
-    for (l in 1:k){
+    Y<- scale(as.matrix(Y_t[train]), center = TRUE, scale = FALSE)
+    X<- scale(as.matrix(X_t[train, ]), center = TRUE, scale = TRUE)
+    
+    #to be used to scale the validation set.
+    center_X <- colMeans(as.matrix(X_t), na.rm = TRUE)
+    center_Y <- colMeans(as.matrix(Y_t), na.rm = TRUE)
+    scale_X <- sqrt(diag(cov(X_t)))
+    
+    n <- dim(X)[1]
+    p <- dim(X)[2]
+    
+    XtX <- t(X) %*% X
+    beta.path <- matrix(0, nrow = n_lambdas, ncol = p)
+    diag.H.lambda <- matrix(0, nrow = n_lambdas, ncol = n)
+    
+    for (l in 1:n_lambdas) {
+      lambda <- lambda.v[l] 
+      H <- t(solve(XtX + lambda*diag(1, p)))%*% t(X) 
+      beta.path[l, ] <- (H%*%Y)
+      #H.lambda <- X %*% H
+      #diag.H.lambda[l, ] <- diag(H.lambda)
+    }
+    
+    Y_val <- scale(as.matrix(Y_t[test]), center = center_Y, scale = FALSE)
+    X_val <- scale(as.matrix(X_t[test, ]), center = center_X, scale = scale_X)
+    
+    pred <- X_val %*% t(beta.path)
+    MSPE_groups[, k] <- apply(pred, 2, MSE, Y_val = Y_val) #aply MSE to the columns of predict
 
-      new_X_t_val <- subset(X_t_group, group_random==l)[ ,1:p_X_t]
-      new_X_t_test <- subset(X_t_group, group_random!=l)[ ,1:p_X_t]
-
-      new_Y_t_val <- subset.matrix(Y_t_group, group_random==l)[,1]
-      new_Y_t_test <- subset.matrix(Y_t_group, group_random!=l)[,1]
-
-      p_new <- dim(new_X_t_test)[2]
-      p_new_v <- dim(new_X_t_val)[2]
-
-      beta[[l]] <- solve(t(new_X_t_test)%*%new_X_t_test + lambda*diag(1,p_new))%*% t(new_X_t_test)%*%(new_Y_t_test)
-
-      # singular matrix for lambda = 0 -> trick: add a very small number 
-
-      y_hat[[l]] <-  (new_X_t_val)%*%beta[[l]]
-      y[[l]] <- new_Y_t_val 
-
-      
   }
-
-  y_hat <- c(do.call(rbind, y_hat))
-  beta <- c(do.call(cbind, beta))
-  y <- c(do.call(rbind, y))
-
-  PMSE[[la]] <- 1/n_X_t * sum((y-y_hat)^2)
-
-  }
-
-return(PMSE)
-
+  MSPE_lambda <- rowMeans(MSPE_groups, na.rm = TRUE)
+  
+  lambda_opt <- lambda.v[which.min(MSPE_lambda)]
+  #print(lambda_opt)
+  
+  return (list(
+    MSPE.all = MSPE_lambda,
+    lambda.opt = lambda_opt,
+    MSPE.opt = min(MSPE_lambda),
+    coeff.lambda = beta.path))
 }
 
 
@@ -159,17 +169,13 @@ Comparing the ridge regression using R cv_glmnet and our own function.
 
 plot(cv_ridge_boston)
 
+MSPE_val_5 <- MSPE(X_t = as.matrix(boston.c[, explanatory]), Y_t = boston.c$CMEDV, lambda.v = lambda.v, k = 5)
 
-PMSE_val_10 <- PMSE_k_fold(X_t = as.matrix(boston.c[, explanatory]), Y_t = boston.c$CMEDV, lambda.v = lambda.v, k = 10)
-
-PMSE_min <- min(unlist(PMSE_val_10))
-min <- which.min(PMSE_val_10)
-
-plot(log(lambda.v), PMSE_val_10, ylab = "Predicted Mean Squarred Error", xlab = "log(Lambda)", main = "10-fold of Validation set")
-abline(v=log(lambda.v[min]),col=2,lty=2)
+plot(log(lambda.v), MSPE_val_5$MSPE.all, ylab = "Predicted Mean Squarred Error", xlab = "log(Lambda)", main = "10-fold of Validation set")
+abline(v=log(MSPE_val_5$lambda.opt),col=2,lty=2)
 
 print("Lambda min using k-fold-manually")
-log(lambda.v[min])
+log(MSPE_val_5$lambda.opt)
 ```
 
 As shown in the plots the two approchas give a similar $log(lambda)$ value althoug the MSE values are not the same. We assume there is still an error in our k-fold code. 
@@ -214,10 +220,8 @@ par(mfrow=c(1,1))
 There are 4 non zero coefficiants using Lasso regreassion. As one can see from the MSE plot this corresponds well with what looks like the point with the lowest MSE. From the coefficient plot one can also see that min lambda results in a vertical line crossing 4 betapaths which corresponds to 4 beta values unequal to zero. 
 
 ### 2.2 Computation of the responding fitted values
-Task description: 
 
-Compute the fitted values with the Lasso estimated model (you can use predict). Plot the observed values for the response variable against the Lasso fitted values.
-
+The fittet values using our Lasso estimated model is plottet against the observed values
 ```{r}
 predict_lasso <- predict(lasso_surv,
                   newx = expr,
@@ -249,9 +253,7 @@ abline(a = 0, b = 1, col = 2)
 As one can clearly see this gives a much better prediction for our data. The scales are more similar and the data is quite evenly distributet around the line $x=y$. 
 
 ### 2.4 Comparison of Lasso and OLS Regression
-Task description: 
 
-Compare the OLS and Lasso fitted values. Do a plot for that.
 
 ```{r, eval=FALSE}
 print("Coefficiants Lasso regression")
