@@ -129,7 +129,7 @@ library(ggplot2)
 
 df <- data.frame(fit_sm$eval.points, fit_sm$estimate, bands, -bands)
 
-g <- ggplot(df, aes(fit_sm$eval.points, fit_sm$estimate)) 
-
+g <- ggplot(df, aes(fit_sm$eval.points, fit_sm$estimate)) + geom_line() + geom_line(data = df, aes(fit_sm$eval.points, fit_sm$estimate+ bands), colour = 'red')+ geom_line(data = df, aes(fit_sm$eval.points, fit_sm$estimate- bands), colour = 'red')
+g
 ```
 
