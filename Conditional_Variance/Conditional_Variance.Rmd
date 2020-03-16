@@ -84,6 +84,11 @@ library(sm)
 
 Just a test of the func with h arbritrary chosen
 ```{r}
+
+#eval_points <- seq(6,13, length= 500)
+sm.regression(x=lgWeight,y=Yr,h=.3)#, eval.points = eval_points)
+#sm.regression(x=lgWeight,y=Yr,h=.3)
+#sm.options(eval.grid =TRUE)
 sm.regression(x=lgWeight,y=Yr,h=.3)
 
 ```
@@ -95,7 +100,7 @@ h.dpill <- dpill(x=lgWeight,y=Yr,gridsize=101,
 print(h.dpill)
 ```
 ```{r}
-fit_sm<- sm.regression(x=lgWeight,y=Yr,h=h.dpill)
+fit_sm<- sm.regression(x=lgWeight,y=Yr,h=h.dpill, eval.points = eval_points)
 ```
 
 ```{r}
@@ -113,7 +118,7 @@ Just used the eval points form sm. We should se if we can chaneg them to beeing 
 
 h.dpill_q <- dpill(x=fit_sm$eval.points,y=z,gridsize=101,
                  range.x=range(lgWeight))
-q_hat_sm<- sm.regression(x=lgWeight,y=z,h=h.dpill_q)
+q_hat_sm<- sm.regression(x=fit_sm$eval.points,y=z,h=h.dpill_q, eval.points=eval_points)
 ```
 Estimate sigma^2
 ```{r}
@@ -129,7 +134,7 @@ library(ggplot2)
 
 df <- data.frame(fit_sm$eval.points, fit_sm$estimate, bands, -bands)
 
-g <- ggplot(df, aes(fit_sm$eval.points, fit_sm$estimate)) + geom_line() + geom_line(data = df, aes(fit_sm$eval.points, fit_sm$estimate+ bands), colour = 'red')+ geom_line(data = df, aes(fit_sm$eval.points, fit_sm$estimate- bands), colour = 'red')
+g <- ggplot(df, aes(fit_sm$eval.points, fit_sm$estimate)) + geom_line() + geom_line(data = df, aes(fit_sm$eval.points, fit_sm$estimate+ bands), colour = 'red', linetype = "dashed")+ geom_line(data = df, aes(fit_sm$eval.points, fit_sm$estimate- bands), colour = 'red', linetype = "dashed")
 g
 ```
 
