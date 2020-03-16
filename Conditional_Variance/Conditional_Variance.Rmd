@@ -34,6 +34,7 @@ source("locpolreg.R")
 ```
 
 K Fold cross validation for leave-one-out cross validation from ATENEA:
+
 ```{r}
 k.fold.cv <- function(x,y,k=n,h=range(x)/10,p=1,type.kernel="normal"){
   n <- length(x)
@@ -72,44 +73,44 @@ bandwidth
 
 ```
 
+Fitting the nonparametric regression to data (x,y) where $x$ is the $Yr$ and $y$ is the $lgWeigth$
+
 ```{r}
 h_opt<- which.min(bandwidth$k.cv)
+
 reg <- locpolreg(x=Yr, y=lgWeight, h=h_opt) 
 
 mx <- reg$mtgr
 
-z <- log((lgWeight-mx)^2) #Y- m(x)
-
-
+z1 <- log((lgWeight-mx)^2) #Y- m(x)
 
 ```
 
+Transform estimated residuals
+
 ```{r}
-h_z <- h.k.fold.cv(Yr, z) 
+h_z <- h.k.fold.cv(Yr, z1) 
 h_z_opt <- which.min(h_z$k.cv)
 
-q <- locpolreg(Yr, z, h=h_z_opt)
+q <- locpolreg(Yr, z1, h=h_z_opt)
 
 sigma2 <- exp(q$mtgr)
 ```
 
+Draw a graphic of $\epsilon^2_i$ against $x_i$ and superimpose the estimated function $\sigma^2(x)$. Lastly draw the function $m(x)$ and superimpose the bands $$m(x) \pm 1.96\sigma(x)$$.
+
 ```{r}
+e <- exp(z1)
 
-e <- exp(z)
-
-sigma <- sqrt(e)
-
-banda <- 1.96+sigma
+banda <- 1.96*sqrt(sigma2)
 
 data <- data.frame(Yr, lgWeight, mx, banda)
 
-mx_plot <- ggplot(data, aes(Yr, mx)) + geom_line() + geom_line(data = data, aes(Yr, mx+ bands), colour = 'red', linetype = "dashed")+ geom_line(data = data, aes(Yr, mx- bands), colour = 'red', linetype = "dashed") #+ geom_point(data = data, aes(Yr, lgWeight))
+fp <- ggplot(data, aes(Yr, e)) + geom_point() + geom_line(aes(Yr, sigma2))
+fp
+
+mx_plot <- ggplot(data, aes(Yr, mx)) + geom_line() + geom_line(data = data, aes(Yr, mx+ banda), colour = 'red', linetype = "dashed")+ geom_line(data = data, aes(Yr, mx- banda), colour = 'red', linetype = "dashed") #+ geom_point(data = data, aes(Yr, lgWeight))
 mx_plot
-
-residualsplot <- ggplot(data, aes(Yr, e)) + geom_point() #+ geom_line(aes(Yr, e)) 
-residualsplot
-
-
 
 ```
 
@@ -123,6 +124,7 @@ library(sm)
 ```
 
 Just a test of the func with h arbritrary chosen
+
 ```{r}
 
 #eval_points <- seq(6,13, length= 500)
@@ -148,27 +150,33 @@ m_hat_sm <- fit_sm$estimate
 ```
 
 Transform estimated residuals
+
 ```{r}
-z <- log(fit_sm$se^2)
+z2 <- log(fit_sm$se^2)
+
+z2
 
 ```
 
-Just used the eval points form sm. We should se if we can chaneg them to beeing all the points of lgweights
+Just used the eval points form sm. We should se if we can change them to beeing all the points of lgweights
+
 ```{r}
 
 
-h.dpill_q<- dpill(Yr, z, gridsize = 101, range.x = range(Yr)) #it produces a Nan value!!!!!! I dont know why
+#h.dpill_q<- dpill(Yr, z2, gridsize = 101, range.x = range(Yr)) #it produces a Nan value!!!!!! I dont know why. Why do we need it??
 
-h_q<- h.k.fold.cv(Yr, z) 
+h_q<- h.k.fold.cv(Yr, z2) 
 
 h_q_opt_index<- which.min(h_q$k.cv)
 h_q_opt <- h_q$h.v[h_q_opt_index]
 
-q_hat_sm <- sm.regression(x = Yr, y = z, h= h_q_opt, eval.points = Yr)
+q_hat_sm <- sm.regression(x = Yr, y = z2, h= h_q_opt, eval.points = Yr)
 
 
 ```
-Estimate sigma^2
+
+Estimate $\sigma^2$
+
 ```{r}
 sigma_squared_sm <- exp(q_hat_sm$estimate)
 ```
