@@ -126,10 +126,10 @@ Just a test of the func with h arbritrary chosen
 ```{r}
 
 #eval_points <- seq(6,13, length= 500)
-sm.regression(y=lgWeight,x=Yr,h=.3)#, eval.points = eval_points)
+sm.regression(y=lgWeight,x=Yr,h=.3, eval.points = Yr)#, eval.points = eval_points)
 #sm.regression(x=lgWeight,y=Yr,h=.3)
 #sm.options(eval.grid =TRUE)
-sm.regression(y=lgWeight,x=Yr,h=.3)
+#sm.regression(y=lgWeight,x=Yr,h=.3)
 
 ```
 
@@ -140,7 +140,7 @@ h.dpill <- dpill(y=lgWeight,x=Yr,gridsize=101,
 print(h.dpill)
 ```
 ```{r}
-fit_sm<- sm.regression(y=lgWeight,x=Yr,h=h.dpill)#, eval.points = eval_points)
+fit_sm<- sm.regression(y=lgWeight,x=Yr,h=h.dpill, eval.points = Yr)
 ```
 
 ```{r}
@@ -156,9 +156,17 @@ z <- log(fit_sm$se^2)
 Just used the eval points form sm. We should se if we can chaneg them to beeing all the points of lgweights
 ```{r}
 
-h.dpill_q <- dpill(x=fit_sm$eval.points,y=z,gridsize=101,
-                 range.x=range(fit_sm$eval.points))
-q_hat_sm<- sm.regression(x=fit_sm$eval.points,y=z,h=h.dpill_q)#, eval.points=eval_points)
+
+h.dpill_q<- dpill(Yr, z, gridsize = 101, range.x = range(Yr)) #it produces a Nan value!!!!!! I dont know why
+
+h_q<- h.k.fold.cv(Yr, z) 
+
+h_q_opt_index<- which.min(h_q$k.cv)
+h_q_opt <- h_q$h.v[h_q_opt_index]
+
+q_hat_sm <- sm.regression(x = Yr, y = z, h= h_q_opt, eval.points = Yr)
+
+
 ```
 Estimate sigma^2
 ```{r}
@@ -172,9 +180,9 @@ bands <- 1.96*sqrt(sigma_squared_sm)
 ```{r}
 library(ggplot2)
 
-df <- data.frame(fit_sm$eval.points, fit_sm$estimate, bands, -bands)
+df <- data.frame(Yr, fit_sm$estimate, bands)
 
-g <- ggplot(df, aes(fit_sm$eval.points, fit_sm$estimate)) + geom_line() + geom_line(data = df, aes(fit_sm$eval.points, fit_sm$estimate+ bands), colour = 'red', linetype = "dashed")+ geom_line(data = df, aes(fit_sm$eval.points, fit_sm$estimate- bands), colour = 'red', linetype = "dashed")
+g <- ggplot(df, aes(Yr, fit_sm$estimate)) + geom_line() + geom_line(data = df, aes(Yr, fit_sm$estimate+ bands), colour = 'red', linetype = "dashed")+ geom_line(data = df, aes(Yr, fit_sm$estimate- bands), colour = 'red', linetype = "dashed")
 g
 ```
 
