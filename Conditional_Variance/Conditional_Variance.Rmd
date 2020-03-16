@@ -15,12 +15,13 @@ library(sm)
 
 data(aircraft)
 help(aircraft)
-aircraft$lgPower <- log(aircraft$Power)
-aircraft$lgSpan <- log(aircraft$Span)
-aircraft$lgLength <- log(aircraft$Length)
-aircraft$lgWeight <- log(aircraft$Weight)
-aircraft$lgSpeed <- log(aircraft$Speed)
-aircraft$lgRange <- log(aircraft$Range)
+lgPower <- log(aircraft$Power)
+lgSpan <- log(aircraft$Span)
+lgLength <- log(aircraft$Length)
+lgWeight <- log(aircraft$Weight)
+lgSpeed <- log(aircraft$Speed)
+lgRange <- log(aircraft$Range)
+Yr <- aircraft$Yr
 ```
 
 
@@ -77,5 +78,58 @@ h.k.fold.cv <- function(x,y,h.v = exp(seq(log(diff(range(x))/20),
 
 ```{r}
 library(KernSmooth)
+library(sm)
+
+```
+
+Just a test of the func with h arbritrary chosen
+```{r}
+sm.regression(x=lgWeight,y=Yr,h=.3)
+
+```
+
+```{r}
+h.dpill <- dpill(x=lgWeight,y=Yr,gridsize=101,
+                 range.x=range(lgWeight))
+
+print(h.dpill)
+```
+```{r}
+fit_sm<- sm.regression(x=lgWeight,y=Yr,h=h.dpill)
+```
+
+```{r}
+m_hat_sm <- fit_sm$estimate
+```
+
+Transform estimated residuals
+```{r}
+z <- log(fit_sm$se^2)
+
+```
+
+Just used the eval points form sm. We should se if we can chaneg them to beeing all the points of lgweights
+```{r}
+
+h.dpill_q <- dpill(x=fit_sm$eval.points,y=z,gridsize=101,
+                 range.x=range(lgWeight))
+q_hat_sm<- sm.regression(x=lgWeight,y=z,h=h.dpill_q)
+```
+Estimate sigma^2
+```{r}
+sigma_squared_sm <- exp(q_hat_sm$estimate)
+```
+
+```{r}
+bands <- 1.96*sqrt(sigma_squared_sm)
+```
+
+```{r}
+library(ggplot2)
+
+df <- data.frame(fit_sm$eval.points, fit_sm$estimate, bands, -bands)
+
+g <- ggplot(df, aes(fit_sm$eval.points, fit_sm$estimate)) 
+
 ```
 
