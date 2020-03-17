@@ -9,12 +9,12 @@ output: pdf_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## Aircraft data
+## Aircraft data, 
 ```{r}
 library(sm)
 
 data(aircraft)
-help(aircraft)
+#help(aircraft)
 lgPower <- log(aircraft$Power)
 lgSpan <- log(aircraft$Span)
 lgLength <- log(aircraft$Length)
@@ -27,7 +27,6 @@ Yr <- aircraft$Yr
 
 ## Estimating the conditional variance
 
-### First, use the function loc.pol.reg that you can find in ATENEA and choose all the bandwidth values you need by leave-one-out cross-validation (you have not to program it again! Just look for the right function in the *.Rmd files you can find in ATENEA)
 
 ```{r}
 source("locpolreg.R")
@@ -67,39 +66,40 @@ h.k.fold.cv <- function(x,y,h.v = exp(seq(log(diff(range(x))/20),
   return(list(k=k,h.v=h.v,k.cv=k.cv))
 }
 
-bandwidth <- h.k.fold.cv(Yr, lgWeight) #consider if we need to use a different vector for h.v
-
-bandwidth
-
 ```
 
-Fitting the nonparametric regression to data (x,y) where $x$ is the $Yr$ and $y$ is the $lgWeigth$
+Calculate the optimal bandwidth. 
+```{r}
+bandwidth <- h.k.fold.cv(Yr, lgWeight) 
+h_opt<- bandwidth$h.v[which.min(bandwidth$k.cv)]
+```
+
+Fitting the nonparametric regression to data (x,y) where $x = Yr$ and $y = lgWeigth$ and calculate the residuals. 
 
 ```{r}
-h_opt<- which.min(bandwidth$k.cv)
 
 reg <- locpolreg(x=Yr, y=lgWeight, h=h_opt) 
-
 mx <- reg$mtgr
-
-z1 <- log((lgWeight-mx)^2) #Y- m(x)
 
 ```
 
-Transform estimated residuals
+Transform estimated residuals and fit a non-parametrix regressin to ($yr$, $z$). Finaly we obtain the estimate for $\sigma^2$.
 
 ```{r}
+z1 <- log((lgWeight-mx)^2) #Y- m(x) = epsilon
 h_z <- h.k.fold.cv(Yr, z1) 
-h_z_opt <- which.min(h_z$k.cv)
+h_z_opt <- h_z$h.v[which.min(h_z$k.cv)]
 
 q <- locpolreg(Yr, z1, h=h_z_opt)
 
 sigma2 <- exp(q$mtgr)
 ```
 
-Draw a graphic of $\epsilon^2_i$ against $x_i$ and superimpose the estimated function $\sigma^2(x)$. Lastly draw the function $m(x)$ and superimpose the bands $$m(x) \pm 1.96\sigma(x)$$.
+A graphic is made of $\epsilon^2_i$ against $x_i$ and superimpose the estimated function $\sigma^2(x)$. Lastly draw the function $m(x)$ and superimpose the bands $$m(x) \pm 1.96\sigma(x)$$.
 
 ```{r}
+library(ggplot2)
+
 e <- exp(z1)
 
 banda <- 1.96*sqrt(sigma2)
@@ -127,22 +127,24 @@ Just a test of the func with h arbritrary chosen
 
 ```{r}
 
-#eval_points <- seq(6,13, length= 500)
-sm.regression(y=lgWeight,x=Yr,h=.3, eval.points = Yr)#, eval.points = eval_points)
-#sm.regression(x=lgWeight,y=Yr,h=.3)
-#sm.options(eval.grid =TRUE)
-#sm.regression(y=lgWeight,x=Yr,h=.3)
+
+sm.regression(y=lgWeight,x=Yr,h=.3, eval.points = Yr)
+
 
 ```
 
+Finding the optimal bandwidth using R function dpill. 
 ```{r}
 h.dpill <- dpill(y=lgWeight,x=Yr,gridsize=101,
                  range.x=range(Yr))
 
 print(h.dpill)
 ```
+As one can see this in much larger then the bandtwidth used in the test and we will see that this results in a muhc smoother graph. 
+
+The non parametric model is fitted using sm.regression. 
 ```{r}
-fit_sm<- sm.regression(y=lgWeight,x=Yr,h=h.dpill, eval.points = Yr)
+fit_sm<- sm.regression(x=Yr, y=lgWeight, h=h.dpill, eval.points = Yr)
 ```
 
 ```{r}
@@ -152,26 +154,15 @@ m_hat_sm <- fit_sm$estimate
 Transform estimated residuals
 
 ```{r}
-z2 <- log(fit_sm$se^2)
-
-z2
-
+z2 <- log((lgWeight-m_hat_sm)^2)
 ```
 
-Just used the eval points form sm. We should se if we can change them to beeing all the points of lgweights
+Fit a new model with hte residuals on the y axis. 
 
 ```{r}
 
-
-#h.dpill_q<- dpill(Yr, z2, gridsize = 101, range.x = range(Yr)) #it produces a Nan value!!!!!! I dont know why. Why do we need it??
-
-h_q<- h.k.fold.cv(Yr, z2) 
-
-h_q_opt_index<- which.min(h_q$k.cv)
-h_q_opt <- h_q$h.v[h_q_opt_index]
-
-q_hat_sm <- sm.regression(x = Yr, y = z2, h= h_q_opt, eval.points = Yr)
-
+h_q_opt_2 <- dpill(Yr, z2, gridsize = 101, range.x = range(Yr))
+q_hat_sm <- sm.regression(x = Yr, y = z2, h= h_q_opt_2, eval.points = Yr)
 
 ```
 
@@ -185,12 +176,18 @@ sigma_squared_sm <- exp(q_hat_sm$estimate)
 bands <- 1.96*sqrt(sigma_squared_sm)
 ```
 
+Plot the grafics, same as in exercise 1.
 ```{r}
 library(ggplot2)
 
-df <- data.frame(Yr, fit_sm$estimate, bands)
+mx_2 <- fit_sm$estimate
+df <- data.frame(Yr, mx_2, bands, exp(z2), sigma_squared_sm)
 
-g <- ggplot(df, aes(Yr, fit_sm$estimate)) + geom_line() + geom_line(data = df, aes(Yr, fit_sm$estimate+ bands), colour = 'red', linetype = "dashed")+ geom_line(data = df, aes(Yr, fit_sm$estimate- bands), colour = 'red', linetype = "dashed")
-g
+g1<- ggplot(data = df, aes(Yr, exp(z2))) + geom_point() + geom_line(data= df, aes(Yr, sigma_squared_sm), color = "blue")
+
+g1
+
+g2 <- ggplot(df, aes(Yr, mx_2)) + geom_line() + geom_line(data = df, aes(Yr, mx_2+ bands), colour = 'red', linetype = "dashed")+ geom_line(data = df, aes(Yr, mx_2- bands), colour = 'red', linetype = "dashed")
+g2
 ```
-
+As we can clearly see the plots here and the one from the first part are very similar. 
