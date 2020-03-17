@@ -5,7 +5,7 @@ date: "03 de marzo de 2020"
 output: pdf_document
 ---
 
-```{r setup, include=FALSE}
+```{r setup, include = FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
@@ -18,7 +18,8 @@ The Boston House-price corrected dataset (available in boston.Rdata) con- tains 
 
 ### 1.1 Lasso estimation using the package 'glmnet'
 After loading the right package, the response and explanatory variables from the Boston Housing data are set.
-```{r}
+
+```{r, warning = FALSE}
 #install.packages("glmnet")
 library(glmnet)
 library(Matrix)
@@ -34,8 +35,8 @@ boston.c$CHAS <- as.numeric(boston.c$CHAS)
 ```
 
 Fitting the Lasso Regression model. (Correcting for previous mistakes standardize ans intercept is now set to TRUE)
-```{r}
 
+```{r}
 lasso_boston <- glmnet(x = as.matrix(boston.c[, explanatory]), 
                 y = boston.c$CMEDV,
                 alpha = 1,     # specifying alpha = 1: Lasso Regression
@@ -52,18 +53,14 @@ cv_lasso_boston
 plot(cv_lasso_boston)
 
 library(plotmo) #plot glmnet with coefficient names
-plot_glmnet(lasso_boston, s=cv_lasso_boston$lambda.min)
+plot_glmnet(lasso_boston, s = cv_lasso_boston$lambda.min)
 ```
 
 The resulting  model has around $11$ non-zero explanatory variables and a mean square error around $23$ (changes a bit from run to run). 
 
-
 ### 1.2 Ridge Regression model using glmnet
-
-
 We fit the dataset using glmnet and ridge regression and plot the results. 
 Task description: 
-
 
 ```{r}
 ridge_boston <- glmnet(x = as.matrix(boston.c[, explanatory]), 
@@ -74,7 +71,8 @@ ridge_boston <- glmnet(x = as.matrix(boston.c[, explanatory]),
 #ridge_boston$beta 
 ```
 
-The ridge regression of boston data using cv.glmnet
+The ridge regression of boston data using cv.glmnet.
+
 ```{r}
 cv_ridge_boston <- cv.glmnet(x = as.matrix(boston.c[, explanatory]), 
                 y = boston.c$CMEDV,
@@ -83,12 +81,13 @@ cv_ridge_boston <- cv.glmnet(x = as.matrix(boston.c[, explanatory]),
                 intercept = TRUE)
 cv_ridge_boston
 plot(cv_ridge_boston)
-plot_glmnet(ridge_boston, s=cv_ridge_boston$lambda.min)
+plot_glmnet(ridge_boston, s = cv_ridge_boston$lambda.min)
 ```
 
 The rigde regression has a few more non-zero expenatory variables than Lasso. A lot of them are very close to zero which is also the case in the Lasso regression. The same parameters are also the ones who are most clearly not equal to zero.
 
-The 10-fold-function corrected. 
+The 10-fold-function corrected.
+
 ```{r, warning=FALSE}
 # MSE function to be used in MSPE
 MSE <- function(Y_val, pred) {
@@ -140,7 +139,7 @@ MSPE<- function(X_t, Y_t, lambda.v, k_number){
     X_val <- scale(as.matrix(X_t[test, ]), center = center_X, scale = scale_X)
     
     pred <- X_val %*% t(beta.path)
-    MSPE_groups[, k] <- apply(pred, 2, MSE, Y_val = Y_val) #aply MSE to the columns of predict
+    MSPE_groups[, k] <- apply(pred, 2, MSE, Y_val = Y_val) # aply MSE to the columns of predict
 
   }
   MSPE_lambda <- rowMeans(MSPE_groups, na.rm = TRUE)
@@ -157,13 +156,14 @@ MSPE<- function(X_t, Y_t, lambda.v, k_number){
 
 lambda.max = 1e9
 n_lambdas <- 25
-lambda.v <- exp(seq(0,log(lambda.max+1),length=n_lambdas))-1
+lambda.v <- exp(seq(0, log(lambda.max+1), length = n_lambdas)) - 1
 ```
 
-
 Comparing the ridge regression using R cv_glmnet and our own function.
+
 ```{r, warning=FALSE}
 library(ggplot2)
+
 plot(cv_ridge_boston)
 
 MSPE_val_5 <- MSPE(X_t = as.matrix(boston.c[, explanatory]), Y_t = boston.c$CMEDV, lambda.v = lambda.v, k = 10)
@@ -173,7 +173,6 @@ df <- data.frame(log(lambda.v), MSPE_values )
 g <- ggplot( data = df, aes(log(lambda.v), MSPE_values)) + geom_point() + geom_vline(xintercept = log(MSPE_val_5$lambda.opt)) + ggtitle("10-fold of Validation set")
 
 g
-
 
 print("Lambda min using k-fold-manually")
 log(MSPE_val_5$lambda.opt)
@@ -185,6 +184,7 @@ Now the k-fold gives much more similar results to both the Lasso and the Ridge r
 
 ## 2. A regression model with $p >> n$
 Reading in the data.
+
 ```{r}
 express <- read.csv("journal.pbio.0020108.sd012.CSV",header=FALSE)
 surv <- read.csv("journal.pbio.0020108.sd013.CSV",header=FALSE)
@@ -194,9 +194,7 @@ expr <- as.matrix(t(express[,death]))
 colnames(expr) <- paste("V", 1:nrow(express), sep = "")
 ```
 
-
 ### 2.1 Lasso estimation using glmnet for regressing 'log.surv' against 'expr'
-
 Glmnet and cv.glmnet are used to obtain the lasso regressino for $log(surv)$ against $express$.
 
 ```{r}
@@ -210,32 +208,30 @@ cv_lasso_surv <- cv.glmnet(x = expr, y = log.surv,
 # Number of non-zero coefficients
 cv_lasso_surv
 # Plot two graphics
-par(mfrow=c(2,1))
+par(mfrow = c(2, 1))
 plot(cv_lasso_surv)
-plot(lasso_surv,xvar="lambda")
-abline(v=log(cv_lasso_surv$lambda.min),col=2,lty=2)
-abline(v=log(cv_lasso_surv$lambda.1se),col=2,lty=2)
-par(mfrow=c(1,1))
+plot(lasso_surv, xvar = "lambda")
+abline(v=log(cv_lasso_surv$lambda.min), col = 2, lty = 2)
+abline(v=log(cv_lasso_surv$lambda.1se), col = 2, lty = 2)
+par(mfrow = c(1, 1))
 ```
 
 There are few non zero coefficiants using Lasso regreassion. As one can see from the MSE plot the number corresponds well with what looks like the point with the lowest MSE. From the coefficient plot one can also see that min lambda results in a vertical line crossing the same number of betapaths. 
 
 ### 2.2 Computation of the responding fitted values
+The fittet values using our Lasso estimated model is plottet against the observed values.
 
-The fittet values using our Lasso estimated model is plottet against the observed values
 ```{r}
 predict_lasso <- predict(cv_lasso_surv,
                   newx = expr,
                   s = cv_lasso_surv$lambda.min)
 plot( log.surv, predict_lasso)
-abline(a=0, b=1, col = 2)
+abline(a = 0, b = 1, col = 2)
 ```
 
 As one can see from the plot the real values are on a larger scale than the predicted values. This could mean that this is not the best way to modle this type of data. 
 
-
 ### 2.3 OLS regression model for 'log.surv' against 'expr'
-
 Now we will fitt and OLS model with the responsvariables given by the non-zero coefficiants in the Lasso regression. 
 
 ```{r}
@@ -254,7 +250,6 @@ abline(a = 0, b = 1, col = 2)
 As one can clearly see this gives a much better prediction for our data. The scales are more similar and the data is quite evenly distributet around the line $x=y$. 
 
 ### 2.4 Comparison of Lasso and OLS Regression
-
 
 ```{r, eval=FALSE}
 print("Coefficiants Lasso regression")
