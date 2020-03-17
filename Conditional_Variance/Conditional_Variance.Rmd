@@ -83,11 +83,11 @@ mx <- reg$mtgr
 Transform estimated residuals and fit a non-parametrix regressin to ($yr$, $z$). Finaly we obtain the estimate for $\sigma^2$.
 
 ```{r}
-z1 <- log((lgWeight - mx)^2) #Y- m(x) = epsilon
+z1 <- log((lgWeight - mx)^2) #Y - m(x) = epsilon
 h_z <- h.k.fold.cv(Yr, z1) 
 h_z_opt <- h_z$h.v[which.min(h_z$k.cv)]
 
-q <- locpolreg(Yr, z1, h = h_z_opt)
+q <- locpolreg(x = Yr, y = z1, h = h_z_opt)
 
 sigma2 <- exp(q$mtgr)
 ```
@@ -106,7 +106,7 @@ data <- data.frame(Yr, lgWeight, mx, banda)
 fp <- ggplot(data, aes(Yr, e)) + geom_point() + geom_line(aes(Yr, sigma2), colour = 'red')
 fp
 
-mx_plot <- ggplot(data, aes(Yr, mx)) + geom_line() + geom_line(data = data, aes(Yr, mx + banda), colour = 'red', linetype = "dashed")+ geom_line(data = data, aes(Yr, mx - banda), colour = 'red', linetype = "dashed") #+ geom_point(data = data, aes(Yr, lgWeight))
+mx_plot <- ggplot(data, aes(Yr, mx)) + geom_line() + geom_line(data = data, aes(Yr, mx + banda), colour = 'red', linetype = "dashed")+ geom_line(data = data, aes(Yr, mx - banda), colour = 'red', linetype = "dashed")
 mx_plot
 
 ```
