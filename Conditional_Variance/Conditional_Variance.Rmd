@@ -71,23 +71,31 @@ Calculate the optimal bandwidth.
 ```{r}
 bandwidth <- h.k.fold.cv(Yr, lgWeight) 
 h_opt<- bandwidth$h.v[which.min(bandwidth$k.cv)]
+
+#Check that the optimal is within the space of h:
+bandwidth$h.v
+h_opt
 ```
+The optimal value for h is not on the borders of the possible values for bandwidth hence we now it is the actual minimum. 
 
 Fitting the nonparametric regression to data (x,y) where $x = Yr$ and $y = lgWeigth$ and calculate the residuals. 
-
 ```{r}
 reg <- locpolreg(x = Yr, y = lgWeight, h = h_opt) 
 mx <- reg$mtgr
 ```
 
-Transform estimated residuals and fit a non-parametrix regressin to ($yr$, $z$). Finaly we obtain the estimate for $\sigma^2$.
+Transform estimated residuals and fit a non-parametrix regressin to ($Yr$, $z$). Finaly we obtain the estimate for $\sigma^2$.
 
 ```{r}
 z1 <- log((lgWeight - mx)^2) #Y - m(x) = epsilon
 h_z <- h.k.fold.cv(Yr, z1) 
 h_z_opt <- h_z$h.v[which.min(h_z$k.cv)]
 
-q <- locpolreg(x = Yr, y = z1, h = h_z_opt)
+#Check h_opt is the actual minimum, which it is.
+#h_z$h.v
+#h_z_opt
+
+q <- locpolreg(Yr, z1, h = h_z_opt)
 
 sigma2 <- exp(q$mtgr)
 ```

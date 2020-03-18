@@ -42,14 +42,14 @@ lasso_boston <- glmnet(x = as.matrix(boston.c[, explanatory]),
                 alpha = 1,     # specifying alpha = 1: Lasso Regression
                 standardize = TRUE,
                 intercept = TRUE)
-lasso_boston$beta
+#lasso_boston$beta
 
 cv_lasso_boston <- cv.glmnet(x = as.matrix(boston.c[, explanatory]), 
                 y = boston.c$CMEDV,
                 alpha = 1,     # specifying alpha = 1: Lasso Regression
                 standardize = TRUE,
                 intercept = TRUE)
-cv_lasso_boston
+cv_lasso_boston 
 plot(cv_lasso_boston)
 
 library(plotmo) #plot glmnet with coefficient names
@@ -60,7 +60,6 @@ The resulting  model has around $11$ non-zero explanatory variables and a mean s
 
 ### 1.2 Ridge Regression model using glmnet
 We fit the dataset using glmnet and ridge regression and plot the results. 
-Task description: 
 
 ```{r}
 ridge_boston <- glmnet(x = as.matrix(boston.c[, explanatory]), 
@@ -174,9 +173,9 @@ g <- ggplot( data = df, aes(log(lambda.v), MSPE_values)) + geom_point() + geom_v
 
 g
 
-print("Lambda min using k-fold-manually")
+# Lambda min using k-fold-manually
 log(MSPE_val_5$lambda.opt)
-print("Minimun MSPE using k-fold-manually")
+# Minimun MSPE using k-fold-manually
 MSPE_val_5$MSPE.opt
 ```
 
@@ -252,9 +251,9 @@ As one can clearly see this gives a much better prediction for our data. The sca
 ### 2.4 Comparison of Lasso and OLS Regression
 
 ```{r, eval=FALSE}
-print("Coefficiants Lasso regression")
+#Coefficiants Lasso regression
 coef(cv_lasso_surv, s = "lambda.min")[coef(cv_lasso_surv, s = "lambda.min")[,1] != 0]
-print("Coefficiants OLS")
+#Coefficiants OLS
 lm_surv$coefficients
 
 plot(lm_surv$fitted.values, predict_lasso)
