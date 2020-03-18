@@ -1,0 +1,113 @@
+---
+title: "Local_poison_regression"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+# Bandwidth choice for the local Poisson regression
+
+Modify the functions `h.cv.sm.binomial` and `loglik.CV` to obtain a bandwidth choice method for the local Poisson regression based on the loo-CV estimation of the expected likelihood of an independent observation. 
+
+Remember that the leave-one-out cross-validation estimation of the expected log-likelihood of an independent observation, when using $h$ as bandwidth, is
+\[
+\ell_{CV}(h)
+=\frac{1}{n}\sum_{i=1}^{n} \log\left( \widehat{\Pr}_h^{\tiny(-i)}(Y=y_i|X=x_i)\right),
+\]
+where $\widehat{\Pr}_h^{\tiny(-i)}(Y=y_i|X=x_i)$ is an estimation of
+\[
+\Pr(Y=y_i|X=x_i)=e^{-\lambda_i} \frac{\lambda_i^{y_i}}{y_i!},
+\]
+and 
+\[
+\lambda_i=\mathbb{E}(Y|X=x_i)
+\]
+should be estimated by maximum local likelihood using $h$ as bandwidth (for instance, using the function `sm.poisson` from the R package `sm`).
+```{r}
+# Bandwidth choice in the local logistic regression 
+# by leave-one-out cross-validation.
+# Function "sm.binomial", from library "sm", is used.
+#
+# Pedro Delicado
+
+# method can be equal to 'loglik.CV' (default) or 'prob.missclas.CV'
+h.cv.sm.poison <- function(x,y,rg.h=NULL,l.h=10,method=loglik.CV){
+   cv.h <- numeric(l.h)
+   if (is.null(rg.h)){
+      hh <- c(h.select(x,y,method="cv"),
+            h.select(x,y,method="aicc"))#,hcv(x,y))
+      rg.h <- range(hh)*c(1/2, 2)
+   }
+   i <- 0
+   gr.h <- exp( seq(log(rg.h[1]), log(rg.h[2]), l=l.h))
+   for (h in gr.h){
+      i <- i+1
+      cv.h[i] <- method(x,y,h)
+   }
+   return(list(h = gr.h, 
+               cv.h = cv.h, 
+               h.cv = gr.h[which.min(cv.h)]))
+}
+
+
+# method loglik.CV: leave-one-out log-likelihood 
+loglik.CV <- function(x,y,h){
+  n <- length(x)
+  pred <- sapply(1:n, 
+      function(i,x,y,h){
+         sm.poisson(x=x[-i],y=y[-i],h=h,eval.points=x[i],display="none")$estimate
+      },   x,y,h)
+  faculty <- sapply(1:n, function(i, y){prod(1:y[i])}, y)
+
+  return(-sum(y*log(pred)-pred)) #-log(faculty) only a scale
+}
+
+```
+```{r}
+countries<-read.csv2(file="HDI.2017.subset.csv",row.names = 1)
+#attach(countries)
+le.fm.r <- round(countries$le.fm)
+library(sm)
+
+```
+
+```{r}
+x<- countries$Life.expec
+y<- le.fm.r
+h=500
+i=3
+n = length(x)
+#sm.poisson(x=x[-i],y=y[-i],h=h,eval.points=x[i],display="none")$estimate
+  pred <- sapply(1:n, 
+      function(i,x,y,h){
+         sm.poisson(x=x[-i],y=y[-i],h=h,eval.points=x[i],display="none")$estimate
+      },   x,y,h)
+sum(y*log(pred)-pred)
+
+
+h.cv.sm.poison(Life.expec, le.fm.r)
+```
+```{r}
+h.CV.loglik <- h.cv.sm.poison(Life.expec,le.fm.r,rg.h=c(1,3),method=loglik.CV)
+plot(h.CV.loglik$h,h.CV.loglik$cv.h)
+lines(h.CV.loglik$h,h.CV.loglik$cv.h)
+```
+
+```{r}
+aux <- sm.poisson(Life.expec,le.fm.r,h=h.CV.loglik$h.cv)
+title(main=paste("h.cv.loglik =",round(h.CV.loglik$h.cv,2),sep=""))
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
