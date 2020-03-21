@@ -6,6 +6,7 @@ output: html_document
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
+
 # Bandwidth choice for the local Poisson regression
 
 Modify the functions `h.cv.sm.binomial` and `loglik.CV` to obtain a bandwidth choice method for the local Poisson regression based on the loo-CV estimation of the expected likelihood of an independent observation. 
@@ -24,12 +25,10 @@ and
 \lambda_i=\mathbb{E}(Y|X=x_i)
 \]
 should be estimated by maximum local likelihood using $h$ as bandwidth (for instance, using the function `sm.poisson` from the R package `sm`).
+
 ```{r}
-# Bandwidth choice in the local logistic regression 
-# by leave-one-out cross-validation.
-# Function "sm.binomial", from library "sm", is used.
-#
-# Pedro Delicado
+# Bandwidth choice in the local logistic regression by leave-one-out cross-validation.
+# Function "sm.poisson", from library "sm", is used.
 
 # method can be equal to 'loglik.CV' (default) or 'prob.missclas.CV'
 h.cv.sm.poison <- function(x,y,rg.h=NULL,l.h=10,method=loglik.CV){
@@ -59,10 +58,10 @@ loglik.CV <- function(x,y,h){
       function(i,x,y,h){
          sm.poisson(x=x[-i],y=y[-i],h=h,eval.points=x[i],display="none")$estimate
       },   x,y,h)
-  faculty <- sapply(1:n, function(i, y){prod(1:y[i])}, y)
+  faculty <- sapply(1:n, function(i, y){prod(1:y[i])}, y) # do we need this?
 
-  return(-sum(y*log(pred)-pred)) #-log(faculty) only a scale # why this change?
-  # return(-sum( y*log(pred/(1-pred)) + log(1-pred) )/n)# I understand why you change log(pred/(1-pred)) for log(pred) but I don't really understand the change of the second part.
+  return(-sum(y*log(pred)-pred)) #-log(faculty) only a scale 
+  
 }
 
 ```
@@ -74,13 +73,12 @@ countries<-read.csv2(file="HDI.2017.subset.csv",row.names = 1)
 #attach(countries)
 le.fm.r <- round(countries$le.fm)
 library(sm)
-
 ```
 
 ```{r}
 x<- countries$Life.expec
 y<- le.fm.r
-h=500
+h=500 # why 500?
 i=3
 n = length(x)
 #sm.poisson(x=x[-i],y=y[-i],h=h,eval.points=x[i],display="none")$estimate
@@ -93,6 +91,7 @@ sum(y*log(pred)-pred)
 
 h.cv.sm.poison(countries$Life.expec, le.fm.r)
 ```
+
 ```{r}
 h.CV.loglik <- h.cv.sm.poison(countries$Life.expec,le.fm.r,rg.h=c(1,3),method=loglik.CV)
 plot(h.CV.loglik$h,h.CV.loglik$cv.h)
@@ -104,14 +103,6 @@ aux <- sm.poisson(countries$Life.expec,le.fm.r,h=h.CV.loglik$h.cv)
 title(main=paste("h.cv.loglik =",round(h.CV.loglik$h.cv,2),sep=""))
 
 ```
-
-
-
-
-
-
-
-
 
 
 
