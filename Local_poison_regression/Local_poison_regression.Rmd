@@ -9,35 +9,17 @@ knitr::opts_chunk$set(echo = TRUE)
 
 # Bandwidth choice for the local Poisson regression
 
-Modify the functions `h.cv.sm.binomial` and `loglik.CV` to obtain a bandwidth choice method for the local Poisson regression based on the loo-CV estimation of the expected likelihood of an independent observation. 
-
-Remember that the leave-one-out cross-validation estimation of the expected log-likelihood of an independent observation, when using $h$ as bandwidth, is
-\[
-\ell_{CV}(h)
-=\frac{1}{n}\sum_{i=1}^{n} \log\left( \widehat{\Pr}_h^{\tiny(-i)}(Y=y_i|X=x_i)\right),
-\]
-where $\widehat{\Pr}_h^{\tiny(-i)}(Y=y_i|X=x_i)$ is an estimation of
-\[
-\Pr(Y=y_i|X=x_i)=e^{-\lambda_i} \frac{\lambda_i^{y_i}}{y_i!},
-\]
-and 
-\[
-\lambda_i=\mathbb{E}(Y|X=x_i)
-\]
-should be estimated by maximum local likelihood using $h$ as bandwidth (for instance, using the function `sm.poisson` from the R package `sm`).
+The functions from ATENEA are modified to fit a local Poisson regression.
 
 ```{r}
-# Bandwidth choice in the local logistic regression by leave-one-out cross-validation.
-# Function "sm.poisson", from library "sm", is used.
 
-# method can be equal to 'loglik.CV' (default) or 'prob.missclas.CV'
+#The first function is not modified
 h.cv.sm.poison <- function(x,y,rg.h=NULL,l.h=10,method=loglik.CV){
    cv.h <- numeric(l.h)
    if (is.null(rg.h)){
       hh <- c(h.select(x,y,method="cv"),
-            h.select(x,y,method="aicc"))#,hcv(x,y))
-      rg.h <- range(hh)*c(1/1.1, 1.5)# I have change it back, I think is better if we leave the teacher numbers.
-      
+            h.select(x,y,method="aicc"))
+      rg.h <- range(hh)*c(1/1.1, 1.5)
    }
    i <- 0
    gr.h <- exp( seq(log(rg.h[1]), log(rg.h[2]), l=l.h))
@@ -52,14 +34,16 @@ h.cv.sm.poison <- function(x,y,rg.h=NULL,l.h=10,method=loglik.CV){
 
 
 # method loglik.CV: leave-one-out log-likelihood 
+
+#Modifications: sm.poisson and the return function is the loglikelihood of the density of the poison distribution. 
+
 loglik.CV <- function(x,y,h){
   n <- length(x)
   pred <- sapply(1:n, 
       function(i,x,y,h){
          sm.poisson(x=x[-i],y=y[-i],h=h,eval.points=x[i],display="none")$estimate
       },   x,y,h)
-  #faculty <- sapply(1:n, function(i, y){prod(1:y[i])}, y) # do we need this? no not really, its for the scaling factor below but we are not using it
-
+  #faculty <- sapply(1:n, function(i, y){prod(1:y[i])}, # if one wants the scalingfactor uncomment this line
   return(-sum(y*log(pred)-pred)) #-log(faculty) only a scale 
   
 }
@@ -84,35 +68,30 @@ library(sm)
 
 x<- countries$Life.expec
 y<- le.fm.r
-h=500
-i=3 # do we need this?
-n = length(x)
 
-pred <- sapply(1:n, 
-    function(i,x,y,h){
-       sm.poisson(x=x[-i],y=y[-i],h=h,eval.points=x[i],display="none")$estimate
-    },   x,y,h)
-sum(y*log(pred)-pred)
+h.cv.sm.poison(countries$Life.expec, le.fm.r)$h.cv
 
-h.cv.sm.poison(countries$Life.expec, le.fm.r)
 ```
 
 Plot of the cross-validation as a function of Bandwidth.
 
 ```{r}
-h.CV.loglik <- h.cv.sm.poison(countries$Life.expec,le.fm.r,rg.h=c(1,3),method=loglik.CV)
+h.CV.loglik <- h.cv.sm.poison(countries$Life.expec,le.fm.r, l.h = 10)
 plot(h.CV.loglik$h,h.CV.loglik$cv.h)
 lines(h.CV.loglik$h,h.CV.loglik$cv.h)
+abline(v=h.CV.loglik$h.cv)
+text(5, labels = "abline( h = h.CV.loglik$h.cv )", col = "gray60")
 title("Bandwidth cross - validation plot")
+
 ```
 
-In this plot it can be seen that the best loglikelihood is a number a bit higher than 2.5, which is where the slope turns to 0.
+In this plot it can be seen that the optimal bandwidth is around $2.5$, which is where the -loglikelihood is at its minimum. 
 
-Bandwidth cross-validation log-likelihood plot.
 
+Now we make a local poison regression where le.fm.r is plotted against life.expectensy. 
 ```{r}
 aux <- sm.poisson(countries$Life.expec,le.fm.r,h=h.CV.loglik$h.cv)
-title(main=paste("h.cv.loglik =",round(h.CV.loglik$h.cv,2),sep=""))
+title(main=paste("h.cv.loglik = ",round(h.CV.loglik$h.cv,2),sep=""))
 
 ```
 
