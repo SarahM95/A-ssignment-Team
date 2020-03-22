@@ -1,7 +1,10 @@
 ---
 title: "Local_poison_regression"
-output: html_document
+author: "Gregoire Gasparini, Aurora Hofman, Sarah Musiol, Beatriu Tort"
+date: "22 de marzo de 2020"
+output: pdf_document
 ---
+
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
@@ -35,7 +38,8 @@ h.cv.sm.poison <- function(x,y,rg.h=NULL,l.h=10,method=loglik.CV){
 
 # method loglik.CV: leave-one-out log-likelihood 
 
-#Modifications: sm.poisson and the return function is the loglikelihood of the density of the poison distribution. 
+#Modifications: sm.poisson and the return function is the loglikelihood 
+#of the density of the poison distribution. 
 
 loglik.CV <- function(x,y,h){
   n <- length(x)
@@ -43,7 +47,8 @@ loglik.CV <- function(x,y,h){
       function(i,x,y,h){
          sm.poisson(x=x[-i],y=y[-i],h=h,eval.points=x[i],display="none")$estimate
       },   x,y,h)
-  #faculty <- sapply(1:n, function(i, y){prod(1:y[i])}, # if one wants the scalingfactor uncomment this line
+  #faculty <- sapply(1:n, function(i, y){prod(1:y[i])},
+  # if one wants the scalingfactor uncomment the line above
   return(-sum(y*log(pred)-pred)) #-log(faculty) only a scale 
   
 }
@@ -56,7 +61,6 @@ Consider the country development dataset containing information on development i
 
 ```{r}
 countries<-read.csv2(file="HDI.2017.subset.csv",row.names = 1)
-#attach(countries)
 le.fm.r <- round(countries$le.fm)
 ```
 
@@ -73,14 +77,14 @@ h.cv.sm.poison(countries$Life.expec, le.fm.r)$h.cv
 
 ```
 
-Plot of the cross-validation as a function of Bandwidth.
+Plot of the loglikelihood as a function of Bandwidth.
 
 ```{r}
 h.CV.loglik <- h.cv.sm.poison(countries$Life.expec,le.fm.r, l.h = 10)
 plot(h.CV.loglik$h,h.CV.loglik$cv.h)
 lines(h.CV.loglik$h,h.CV.loglik$cv.h)
-abline(v=h.CV.loglik$h.cv)
-text(5, labels = "abline( h = h.CV.loglik$h.cv )", col = "gray60")
+abline(v=h.CV.loglik$h.cv, col = "gray60")
+text(4, -497, paste("h.cv.loglik = ",round(h.CV.loglik$h.c,2),sep=""),  col = "gray60")
 title("Bandwidth cross - validation plot")
 
 ```
