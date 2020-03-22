@@ -36,7 +36,7 @@ h.cv.sm.poison <- function(x,y,rg.h=NULL,l.h=10,method=loglik.CV){
    if (is.null(rg.h)){
       hh <- c(h.select(x,y,method="cv"),
             h.select(x,y,method="aicc"))#,hcv(x,y))
-      rg.h <- range(hh)*c(1/2, 2)# why this change? Just when testing to get larger span of h, can probably be changed back
+      rg.h <- range(hh)*c(1/1.1, 1.5)# I have change it back, I think is better if we leave the teacher numbers.
       
    }
    i <- 0
@@ -68,35 +68,47 @@ loglik.CV <- function(x,y,h){
 
 # Local Poisson regression for Country Development Data
 
+Consider the country development dataset containing information on development indicators measured in 179 countries.
+
 ```{r}
 countries<-read.csv2(file="HDI.2017.subset.csv",row.names = 1)
 #attach(countries)
 le.fm.r <- round(countries$le.fm)
-library(sm)
 ```
 
+Fit a local Poisson regression modeling le.fm.0 as a function of Life.expec. 
+Use sm.poisson from R package.
+
 ```{r}
+library(sm)
+
 x<- countries$Life.expec
 y<- le.fm.r
-h=500 # why 500? no reason, could be 1000, or 5000. But 500 is sufficient to get a lot of values :) 
-i=3
+h=500
+i=3 # do we need this?
 n = length(x)
-#sm.poisson(x=x[-i],y=y[-i],h=h,eval.points=x[i],display="none")$estimate
-  pred <- sapply(1:n, 
-      function(i,x,y,h){
-         sm.poisson(x=x[-i],y=y[-i],h=h,eval.points=x[i],display="none")$estimate
-      },   x,y,h)
-sum(y*log(pred)-pred)
 
+pred <- sapply(1:n, 
+    function(i,x,y,h){
+       sm.poisson(x=x[-i],y=y[-i],h=h,eval.points=x[i],display="none")$estimate
+    },   x,y,h)
+sum(y*log(pred)-pred)
 
 h.cv.sm.poison(countries$Life.expec, le.fm.r)
 ```
+
+Plot of the cross-validation as a function of Bandwidth.
 
 ```{r}
 h.CV.loglik <- h.cv.sm.poison(countries$Life.expec,le.fm.r,rg.h=c(1,3),method=loglik.CV)
 plot(h.CV.loglik$h,h.CV.loglik$cv.h)
 lines(h.CV.loglik$h,h.CV.loglik$cv.h)
+title("Bandwidth cross - validation plot")
 ```
+
+In this plot it can be seen that the best loglikelihood is a number a bit higher than 2.5, which is where the slope turns to 0.
+
+Bandwidth cross-validation log-likelihood plot.
 
 ```{r}
 aux <- sm.poisson(countries$Life.expec,le.fm.r,h=h.CV.loglik$h.cv)
