@@ -74,7 +74,6 @@ x<- countries$Life.expec
 y<- le.fm.r
 
 h.cv.sm.poison(countries$Life.expec, le.fm.r)$h.cv
-
 ```
 
 Plot of the loglikelihood as a function of Bandwidth.
@@ -86,17 +85,15 @@ lines(h.CV.loglik$h,h.CV.loglik$cv.h)
 abline(v=h.CV.loglik$h.cv, col = "gray60")
 text(4, -497, paste("h.cv.loglik = ",round(h.CV.loglik$h.c,2),sep=""),  col = "gray60")
 title("Bandwidth cross - validation plot")
-
 ```
 
 In this plot it can be seen that the optimal bandwidth is around $2.5$, which is where the -loglikelihood is at its minimum. 
 
-
 Now we make a local poison regression where le.fm.r is plotted against life.expectensy. 
+
 ```{r}
 aux <- sm.poisson(countries$Life.expec,le.fm.r,h=h.CV.loglik$h.cv)
 title(main=paste("h.cv.loglik = ",round(h.CV.loglik$h.cv,2),sep=""))
-
 ```
 
 
