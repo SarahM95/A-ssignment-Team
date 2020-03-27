@@ -1,4 +1,4 @@
----
+
 ---
 title: "Local_poison_regression"
 author: "Gregoire Gasparini, Aurora Hofman, Beatriu Tort"
@@ -6,7 +6,7 @@ date: "24 de marzo de 2020"
 output: pdf_document
 ---
 
----
+
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
@@ -51,7 +51,9 @@ length(m$fit$knot)
 ```{r}
 df<- tibble(instant, cnt, m$x, m$y)
 
-g<- ggplot(data = df, aes(instant, cnt)) + geom_point() + geom_line(aes(m$x, m$y), colour = "red") + ggtitle("Estimated function and original data")
+g<- ggplot(data = df, aes(instant, cnt)) + geom_point() + 
+  geom_line(aes(m$x, m$y), colour = "red") + 
+  ggtitle("Estimated function and original data")
 g
 ```
 
@@ -68,7 +70,10 @@ m_lm <- lm(cnt~m_bs-1)
 
 ```{r}
 df_tot <- tibble(instant, cnt, m_lm$fitted.values, m$y)
-g_lm <- ggplot(data = df_tot, aes(instant, cnt)) + geom_point(colour = "red", shape= 1) + geom_line(aes(instant, m_lm$fitted.values), color = "blue") + geom_line(aes(instant, m$y), colour = "green") + ggtitle("Original data, cubic spline regression, unpenalized pline regrssion")
+g_lm <- ggplot(data = df_tot, aes(instant, cnt)) + 
+  geom_point(colour = "red", shape= 1) + geom_line(aes(instant, m_lm$fitted.values), color = "blue") + 
+  geom_line(aes(instant, m$y), colour = "green") + 
+  ggtitle("Original data, cubic spline regression, unpenalized pline regrssion")
 g_lm
 ```
 
@@ -90,9 +95,8 @@ source('IRWLS_logistic_regression.R')
 cnt.5000 <- bikes$cnt > 5000
 for (k in 1:length(cnt))
 {
-  if (cnt.5000[k] == TRUE) {cnt.5000[k] = 1} else {cnt.5000[k] = 0} # I changed from cnt.5000[1] til cnt.5000[k], (I do not know why if worked when the index was one, i would have thought that it did the same thing a lot of times, but if it is comman knowledge that it also works with 1 instead of k of course we can change it back)
+  if (cnt.5000[k] == TRUE) {cnt.5000[k] = 1} else {cnt.5000[k] = 0}
 }
-
 #First, We sort the data according to the explanatory variable.
 x <- bikes$temp
 y <- cnt.5000
@@ -104,8 +108,7 @@ y <- y[sx$ix]
 my.spline.glm <- 
   logistic.IRWLS.splines(x,y,
                          df=6, #df = 6 as demanded in instructions
-                         all.knots=FALSE, plts = FALSE) #all.knots=TRUE, Why did you chose this, I put it to false to make it run without warningmessages 
-
+                         all.knots=FALSE, plts = FALSE) 
 #Plot
 plot(x,y,col=2,xlab="temp",ylab="cnt.5000",main = "IRWLS logistic regression")
 abline(v=my.knots,lty=2,col="grey")
@@ -122,35 +125,10 @@ prob_above_50 <- (probability > 0.5)
 indeces<-which(prob_above_50)
 range<- c(x[indeces[1]], x[indeces[length(indeces)]])
 range
-#bit more efficient :) 
-
-# flag = TRUE
-# range=c(0,0)
-# 
-# #Getting the two ranges
-# for (k in 1:length(probability))
-# {
-#   if (flag)
-#     {
-#     if (probability[k]>0.5)
-#     {flag = FALSE
-#     range[1] = k}
-#     }
-#   else
-#     {
-#     if (probability[k]>0.5)
-#     {range[2] = k}
-#     }
-# }
-# 
-# range[1] = x[range[1]]
-# range[2] = x[range[2]]
-# range
 
 ```
 
 The temperatures for which the chance of more than $5000$ bikes are rented is $20.74$ to $32.36$.
-
 
 
 
