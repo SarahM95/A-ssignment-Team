@@ -12,7 +12,7 @@ output: pdf_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-```{r}
+```{r, include=FALSE}
 library(tidyr)
 library(dplyr)
 library(ggplot2)
@@ -45,7 +45,6 @@ m$df
 
 #Number of knots: 
 length(m$fit$knot)
-
 ```
 
 ```{r}
@@ -64,8 +63,6 @@ my.knots <- quantile(instant, ((1:n.knots)-.5)/n.knots)
 
 m_bs <- bs(instant, knots = my.knots, intercept=T)
 m_lm <- lm(cnt~m_bs-1)
-
-
 ```
 
 ```{r}
@@ -88,6 +85,7 @@ Here is the color code :
 
 #Excersice 2 ---------------------------------------------------------------
 
+##Use the function logistic.IRWLS.splines to fit the non-parametric binary regression cnt.5000 as a function of the temperature. 
 ```{r}
 source('IRWLS_logistic_regression.R')
 
@@ -97,6 +95,7 @@ for (k in 1:length(cnt))
 {
   if (cnt.5000[k] == TRUE) {cnt.5000[k] = 1} else {cnt.5000[k] = 0}
 }
+
 #First, We sort the data according to the explanatory variable.
 x <- bikes$temp
 y <- cnt.5000
@@ -109,33 +108,91 @@ my.spline.glm <-
   logistic.IRWLS.splines(x,y,
                          df=6, #df = 6 as demanded in instructions
                          all.knots=FALSE, plts = FALSE) 
+
 #Plot
 plot(x,y,col=2,xlab="temp",ylab="cnt.5000",main = "IRWLS logistic regression")
 abline(v=my.knots,lty=2,col="grey")
 lines(x,my.spline.glm$fitted.values,col=4)
 abline(h=0.5)
-
 ```
 
+##In which range of temperatures is $Pr(cnt>=5000|temp)$ larger than 0.5?
 ```{r}
-
 probability = my.spline.glm$fitted.values
 
 prob_above_50 <- (probability > 0.5)
 indeces<-which(prob_above_50)
 range<- c(x[indeces[1]], x[indeces[length(indeces)]])
 range
-
 ```
 
 The temperatures for which the chance of more than $5000$ bikes are rented is $20.74$ to $32.36$.
 
+##Using the k-fold cross validation with k = 5 to choose df.
+```{r}
+source("locpolreg.R")
 
+k.fold.cv <- function(x, y, k = 5, h = range(x)/10, p = 1, type.kernel = "normal"){
+  n <- length(x)
+  Ik <- floor((0:(n-1))/(n/k)) + 1
+  ssr <- 0
+  for (i in (1:k)){
+    y.i <- y[Ik == i]
+    aux <- locpolreg(x[Ik != i], y[Ik != i], h = h, p = p, tg = x[Ik == i],
+                     type.kernel = type.kernel, doing.plot = FALSE)
+    ssr <- ssr + sum((y.i-aux$mtgr)^2)
+  }
+  k.cv <- ssr/n
+  return(k.cv)
+}
 
+h.k.fold.cv <- function(x, y, h.v = 3:15,
+                        k = 5, p = 1, type.kernel = "normal"){
+  n <- length(x)
+  perm <- sample(1:n)
+  xperm <- x[perm]
+  yperm <- y[perm]
+  
+  k.cv <- h.v*0
+  for (i in (1:length(h.v))){
+    h <- h.v[i]
+    k.cv[i] <- k.fold.cv(x = xperm, y = yperm, k = k, h = h, p = p,
+                         type.kernel = type.kernel)
+  }
+  return(list(k = k, h.v = h.v, k.cv = k.cv))
+}
 
+bestdf <- h.k.fold.cv(x,y) 
+h_opt<- bestdf$h.v[which.min(bestdf$k.cv)]
+h_opt
+```
 
+The optimal df with a k-fold cross validation $k = 5$ is $3$.
 
+##Recaulculing the non-parametric binary regression cnt.5000 as a function of temperature, using df = 3.
+```{r}
+#Now we can fit the model
+my.spline.glm_h.df <- 
+  logistic.IRWLS.splines(x,y,
+                         df=3, #df = 3 as optimal df k-fold cross validation
+                         all.knots=FALSE, plts = FALSE) 
 
+#Plot
+plot(x,y,col=2,xlab="temp",ylab="cnt.5000",main = "IRWLS logistic regression")
+abline(v=my.knots,lty=2,col="grey")
+lines(x,my.spline.glm_h.df$fitted.values,col=4)
+abline(h=0.5)
+```
 
+##In this case the range of temperatures which $Pr(cnt>=5000|temp)$ is larger than 0.5.
+```{r}
+probability_h.df = my.spline.glm_h.df$fitted.values
 
+prob_above_50_h.df <- (probability_h.df > 0.5)
+indeces_h.df<-which(prob_above_50_h.df)
+range_h.df<- c(x[indeces_h.df[1]], x[indeces_h.df[length(indeces_h.df)]])
+range_h.df
+```
+
+With a $df = 3$ the range of the temperatures is $21.76$ to $35.33$
 
