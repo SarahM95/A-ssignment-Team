@@ -36,6 +36,9 @@ par(mfrow=c(1,1))
 ##Fit several GAM models (including semiparametric models) explaining $FGm12$ as a function of the variables that were measured at the beginning of the clinical trial (including $FGm0$) and $Treatment$ (treated as factor).
 
 ```{r}
+library(nlme)
+library(mgcv)
+
 
 
 ```
