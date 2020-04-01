@@ -15,59 +15,160 @@ knitr::opts_chunk$set(echo = TRUE)
 hirs <- read.table("hirsutism.dat",header=T, sep="\t",fill=TRUE)
 hirs$Treatment <- as.factor(hirs$Treatment)
 summary(hirs)
+```
+
+```{r}
 boxplot(hirs[,2:5])
 par(mfrow=c(2,2))
-boxplot(hirs[,2]~Treatment,ylim=c(0,30), main=names(hirs)[2], xlab="Treatment")
-boxplot(hirs[,3]~Treatment,ylim=c(0,30), main=names(hirs)[3], xlab="Treatment")
-boxplot(hirs[,4]~Treatment,ylim=c(0,30), main=names(hirs)[4], xlab="Treatment")
-boxplot(hirs[,5]~Treatment,ylim=c(0,30), main=names(hirs)[5], xlab="Treatment")
+boxplot(hirs[,2]~hirs$Treatment,ylim=c(0,30), main=names(hirs)[2], xlab="Treatment")
+boxplot(hirs[,3]~hirs$Treatment,ylim=c(0,30), main=names(hirs)[3], xlab="Treatment")
+boxplot(hirs[,4]~hirs$Treatment,ylim=c(0,30), main=names(hirs)[4], xlab="Treatment")
+boxplot(hirs[,5]~hirs$Treatment,ylim=c(0,30), main=names(hirs)[5], xlab="Treatment")
 par(mfrow=c(1,1))
 par(mfrow=c(2,2))
-boxplot(hirs[Treatment==0,2:5],ylim=c(0,30), main="Treatment 0")
-boxplot(hirs[Treatment==1,2:5],ylim=c(0,30), main="Treatment 1")
-boxplot(hirs[Treatment==2,2:5],ylim=c(0,30), main="Treatment 2")
-boxplot(hirs[Treatment==3,2:5],ylim=c(0,30), main="Treatment 3")
+boxplot(hirs[hirs$Treatment==0,2:5],ylim=c(0,30), main="Treatment 0")
+boxplot(hirs[hirs$Treatment==1,2:5],ylim=c(0,30), main="Treatment 1")
+boxplot(hirs[hirs$Treatment==2,2:5],ylim=c(0,30), main="Treatment 2")
+boxplot(hirs[hirs$Treatment==3,2:5],ylim=c(0,30), main="Treatment 3")
 par(mfrow=c(1,1))
+
+pairs(hirs)
 ```
 
 ##Fit several GAM models (including semiparametric models) explaining $FGm12$ as a function of the variables that were measured at the beginning of the clinical trial (including $FGm0$) and $Treatment$ (treated as factor).
 
-##1nd regression : linear model through gam (FGm12 ~ SysPres + FG0)
+
+###1st GAM model: linear model through GAM (FGm12 ~ Treatment + FGm0 + SysPres + DiaPres + weight + height)
 
 ```{r}
 library(mgcv)
-attach(hirs)
-am1.0 <- gam(FGm12 ~ SysPres + FGm0, data=hirs)
-summary(am1.0)
-#GCV score : 23.515 GCV score is the minimised generalised cross-validation (GCV) score of the GAM fitted.
 
+gam1 <- gam(FGm12 ~ Treatment + FGm0 + SysPres + DiaPres + weight + height, data = iris)
+summary(gam1)
 ```
 
-##2rd regression : linear model through gam (FGm12 ~ SysPres + FG0)
+###2nd GAM model: smooth model through GAM (FGm12 ~ Treatment + s(FGm0) + s(FGm0, by = Treatment) + s(SysPres) + s(DiaPres) + s(weight) + s(height))
 
 ```{r}
-#S function : Function used in definition of smooth terms within gam model formulae. The function does not evaluate a (spline) smooth - it exists purely to help set up a model using spline based smooths.
-library(mgcv)
-attach(hirs)
-as.factor(hirs$FGm0)
-as.factor(hirs$FGm12)
-am1.1 <- gam(FGm12 ~ s(FGm0)+s(SysPres), data=hirs)
-plot(am1.1,pages=1,residuals=TRUE)
+#S function : Function used in definition of smooth terms within gam model formula. The function does not evaluate a (spline) smooth - it exists purely to help set up a model using spline based smooths.
+
+gam2 <- gam(FGm12 ~ Treatment + s(FGm0) + s(FGm0, by = Treatment) + s(SysPres) + s(DiaPres) + s(weight) + s(height), data = hirs)
+summary(gam2)
+
+# GCV score is the minimised generalised cross-validation (GCV) score of the GAM fitted.
 ```
 
-
-
+From this model we can see that some variables can be removed as have a p-value that is not significant.
+Also the variable SysPres which is significant has a edf of 1 so can be replaced by linear terms.
 
 ```{r}
-library(rgl)
-x <- seq(min(FGm0),max(FGm0), length= 30)
-y <- seq(80,170, length= 30)
-f <- function(x,y) { r <- predict(am1.1, newdata=data.frame(FGm0=x,SysPres=y))}
-z <- outer(x, y, f)
-open3d()
-bg3d("white")
-material3d(col="black")
-persp3d(x, y, z, aspect=c(1, 1, 0.5), col = "lightblue",
-xlab = "FGm0", ylab = "SysPres", zlab = "FGm12")
+plot(gam2, residuals = TRUE, shade=TRUE, seWithMean=TRUE, pages = 7)
 ```
+
+###3rd GAM model: smooth model through GAM (FGm12 ~ Treatment + s(FGm0, by = Treatment) + SysPres)
+
+```{r}
+gam3 <- gam(FGm12 ~ Treatment + s(FGm0, by = Treatment) + SysPres, data = hirs) 
+summary(gam3)
+```
+
+```{r}
+plot(gam3, residuals = TRUE, shade=TRUE, seWithMean=TRUE)
+```
+
+#### Visualization of the joint effects of variables:
+
+```{r}
+vis.gam(gam3, view=c("Treatment","FGm0"), plot.type = "persp", theta=30, phi=30)
+vis.gam(gam3, view=c("Treatment","FGm0"), plot.type = "contour")
+```
+
+
+###4rth GAM model: smooth model through GAM (FGm12 ~  s(FGm0, by = Treatment) + Treatment)
+
+```{r}
+gam4 <- gam(FGm12 ~ s(FGm0) + Treatment, data = hirs)
+summary(gam4)
+```
+
+```{r}
+plot(gam4, residuals = TRUE, shade=TRUE, seWithMean=TRUE)
+```
+
+####Visualization of the joint effects of variables:
+
+```{r}
+vis.gam(gam4, view=c("Treatment","FGm0"), plot.type = "persp", theta=30, phi=30)
+vis.gam(gam4, view=c("Treatment","FGm0"), plot.type = "contour")
+```
+
+###5th GAM model: smooth model through GAM (FGm12 ~  s(FGm0, by = Treatment))
+
+```{r}
+gam5 <- gam(FGm12 ~ s(FGm0, by = Treatment), data = hirs)
+summary(gam5)
+```
+
+```{r}
+plot(gam5, residuals = TRUE, shade=TRUE, seWithMean=TRUE)
+```
+
+####Visualization of the joint effects of variables:
+
+```{r}
+vis.gam(gam5, view=c("Treatment","FGm0"), plot.type = "persp", theta=30, phi=30)
+vis.gam(gam5, view=c("Treatment","FGm0"), plot.type = "contour")
+```
+
+###6th GAM model: smooth model through GAM (FGm12 ~ s(FGm0, by = Treatment) + SysPres + Treatment+ s(FGm0, SysPres)
+
+```{r}
+gam6 <- gam(FGm12 ~ s(FGm0, by = Treatment) + SysPres + Treatment+ s(FGm0, SysPres), data = hirs)
+summary(gam6)
+```
+
+```{r}
+plot(gam6, residuals = TRUE, shade=TRUE, seWithMean=TRUE)
+```
+
+####Visualization of the joint effects of variables:
+
+```{r}
+vis.gam(gam6, view=c("SysPres","FGm0"), plot.type = "persp", theta=30, phi=30)
+vis.gam(gam6, view=c("SysPres","FGm0"), plot.type = "contour")
+
+vis.gam(gam6, view=c("Treatment","FGm0"), plot.type = "persp", theta=30, phi=30)
+vis.gam(gam6, view=c("Treatment","FGm0"), plot.type = "contour")
+
+vis.gam(gam6, view=c("Treatment","SysPres"), plot.type = "persp", theta=30, phi=30)
+vis.gam(gam6, view=c("Treatment","SysPres"), plot.type = "contour")
+
+```
+
+## ANOVA type tests 
+```{r}
+anova(gam1,gam2,test="F")
+```
+
+It is significant so model Gam2 explain better the variance than model 1.
+
+```{r}
+anova(gam3,gam2,test="F")
+```
+
+```{r}
+anova(gam4,gam5,test="F")
+```
+
+```{r}
+anova(gam6,gam3,test="F")
+```
+
+It is seen that the one that explains more variabiity and has the best fitting is the full gam model smoothed, which explains around the 50% of the variablity and has a $R^2_{adj} = 0.368$.
+
+When we remove the non significant variables from this full model we can think about different gam models. The best models suggested has been gam4 which is the one that only takes into account the FGm0 and the Treatment and the gam6 which takes into account FGm0 by the Treatment, SysPres and the Treatment, and the smooth function of FGm0 together with SysPres. 
+Gam4 has a $R^2_{adj} = 0.277$ and explains 34.1% of the variability. On the other hand, model gam6 has a $R^2_{adj} = 0.303$ and explains 42.2% of the variability. 
+Taking into account the gam and anova results the simplest and best model to predict FGm12 using inicial measures of the beginning of the clinical trial is model gam6.
+
+
 
