@@ -1,11 +1,11 @@
 ---
-  title: "GAMs for Hirsutism data"
+title: "GAMs for Hirsutism data"
 author: "Gregoire Gasparini, Aurora Hofman, Beatriu Tort"
 date: "30 de marzo de 2020"
 output: pdf_document
 ---
-  
-  ```{r setup, include=FALSE}
+
+```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
@@ -13,10 +13,11 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ```{r}
 hirs <- read.table("hirsutism.dat",header=T, sep="\t",fill=TRUE)
-hirs$Treatment <- as.factor(hirs$Treatment)
+Treatment<- hirs$Treatment <- as.factor(hirs$Treatment)
 summary(hirs)
 ```
 
+#Boxplots to get an overview of the data. 
 ```{r}
 boxplot(hirs[,2:5])
 par(mfrow=c(2,2))
@@ -35,35 +36,33 @@ par(mfrow=c(1,1))
 pairs(hirs)
 ```
 
-##Fit several GAM models (including semiparametric models) explaining $FGm12$ as a function of the variables that were measured at the beginning of the clinical trial (including $FGm0$) and $Treatment$ (treated as factor).
-
-
 ###1st GAM model: linear model through GAM (FGm12 ~ Treatment + FGm0 + SysPres + DiaPres + weight + height)
 
 ```{r}
 library(mgcv)
 
-gam1 <- gam(FGm12 ~ Treatment + FGm0 + SysPres + DiaPres + weight + height, data = iris)
+gam1 <- gam(FGm12 ~ Treatment + FGm0 + SysPres + DiaPres + weight + height, data = hirs)
 summary(gam1)
 ```
 
 ###2nd GAM model: smooth model through GAM (FGm12 ~ Treatment + s(FGm0) + s(FGm0, by = Treatment) + s(SysPres) + s(DiaPres) + s(weight) + s(height))
 
-```{r}
-#S function : Function used in definition of smooth terms within gam model formula. The function does not evaluate a (spline) smooth - it exists purely to help set up a model using spline based smooths.
+We fit a full model with all the possible explanitory variables. 
 
+```{r}
 gam2 <- gam(FGm12 ~ Treatment + s(FGm0) + s(FGm0, by = Treatment) + s(SysPres) + s(DiaPres) + s(weight) + s(height), data = hirs)
 summary(gam2)
-
-# GCV score is the minimised generalised cross-validation (GCV) score of the GAM fitted.
 ```
 
-From this model we can see that some variables can be removed as have a p-value that is not significant.
-Also the variable SysPres which is significant has a edf of 1 so can be replaced by linear terms.
-
+From this model we can see that some variables potentially can be removed as they have a p-value that implies they are not significant.
+Also the variable SysPres which is significant has a edf of 1 so it can be replaced by linear terms. 
 ```{r}
 plot(gam2, residuals = TRUE, shade=TRUE, seWithMean=TRUE, pages = 7)
 ```
+
+From this model we can see that some variables can be removed as they have a p-value that implies they are not significant.
+Also the variable SysPres which is significant has a edf of 1 so it can be replaced by linear terms, this can also be seen from the plot. 
+This leads us to the following model where s(DiaPres) + s(weight) + s(height) are removed and s(SysPres) is replaced by a linear term leading to a semiparametric model. 
 
 ###3rd GAM model: smooth model through GAM (FGm12 ~ Treatment + s(FGm0, by = Treatment) + SysPres)
 
@@ -83,13 +82,25 @@ vis.gam(gam3, view=c("Treatment","FGm0"), plot.type = "persp", theta=30, phi=30)
 vis.gam(gam3, view=c("Treatment","FGm0"), plot.type = "contour")
 ```
 
+```{r}
+anova(gam3,gam2,test="F")
+```
+
+We see that the reduced model is rejected for the full model. 
+
 
 ###4rth GAM model: smooth model through GAM (FGm12 ~  s(FGm0, by = Treatment) + Treatment)
 
+
 ```{r}
-gam4 <- gam(FGm12 ~ s(FGm0) + Treatment, data = hirs)
+gam4 <- gam(FGm12 ~ Treatment + s(FGm0, by = Treatment), data = na.omit(hirs)) 
 summary(gam4)
+anova(gam4, gam2, test = "F")
 ```
+
+Again we reject the smaller model for the full model. 
+Also we can see that almost all the s(FGm0):Treatment have a significant p value impying that we shoulf fit a model without these. 
+
 
 ```{r}
 plot(gam4, residuals = TRUE, shade=TRUE, seWithMean=TRUE)
@@ -102,13 +113,14 @@ vis.gam(gam4, view=c("Treatment","FGm0"), plot.type = "persp", theta=30, phi=30)
 vis.gam(gam4, view=c("Treatment","FGm0"), plot.type = "contour")
 ```
 
-###5th GAM model: smooth model through GAM (FGm12 ~  s(FGm0, by = Treatment))
+###5th GAM model: smooth model through GAM (FGm12 ~ s(FGm0) + Treatment)
 
 ```{r}
-gam5 <- gam(FGm12 ~ s(FGm0, by = Treatment), data = hirs)
+gam5 <- gam(FGm12 ~ s(FGm0) + Treatment, data = na.omit(hirs))
 summary(gam5)
+anova(gam5, gam2, test = "F")
 ```
-
+This model is also rejected compared to the full model.
 ```{r}
 plot(gam5, residuals = TRUE, shade=TRUE, seWithMean=TRUE)
 ```
@@ -125,8 +137,9 @@ vis.gam(gam5, view=c("Treatment","FGm0"), plot.type = "contour")
 ```{r}
 gam6 <- gam(FGm12 ~ s(FGm0, by = Treatment) + SysPres + Treatment+ s(FGm0, SysPres), data = hirs)
 summary(gam6)
+anova(gam6, gam2, test = "F")
 ```
-
+Again the model we prefer is the first full model with all expenatory variables. 
 ```{r}
 plot(gam6, residuals = TRUE, shade=TRUE, seWithMean=TRUE)
 ```
@@ -145,30 +158,26 @@ vis.gam(gam6, view=c("Treatment","SysPres"), plot.type = "contour")
 
 ```
 
-## ANOVA type tests 
+## ANOVA type tests for the smaller models. 
 ```{r}
 anova(gam1,gam2,test="F")
 ```
 
-It is significant so model Gam2 explain better the variance than model 1.
+It is significant so model Gam2 explain better the variance than model 1. We conclude it is better to use a gam model than an ordinary linear model. 
+
 
 ```{r}
-anova(gam3,gam2,test="F")
+anova(gam4,gam3,test="F")
+anova(gam5,gam4,test="F")
+anova(gam5,gam6,test="F")
 ```
 
-```{r}
-anova(gam4,gam5,test="F")
-```
+As we can see the the gam 4 is not rejected comparet to gam3. However gam5 is not rejectec compared to gam4 so we consider this a better model. Gam5 is also not rejected compared to gam6. 
+This measn that the best model which is not the full model is gam5 which is FGm12 ~ s(FGm0) + Treatment. This is a very easy model and as we have seen earlier from the summary it only explains around 33 percent of the deviance. 
 
-```{r}
-anova(gam6,gam3,test="F")
-```
+However it is seen like the full gam model which explains the most variability, also just explains around the 50% of the variablity and has a $R^2_{adj} = 0.368$.
 
-It is seen that the one that explains more variabiity and has the best fitting is the full gam model smoothed, which explains around the 50% of the variablity and has a $R^2_{adj} = 0.368$.
 
-When we remove the non significant variables from this full model we can think about different gam models. The best models suggested has been gam4 which is the one that only takes into account the FGm0 and the Treatment and the gam6 which takes into account FGm0 by the Treatment, SysPres and the Treatment, and the smooth function of FGm0 together with SysPres. 
-Gam4 has a $R^2_{adj} = 0.277$ and explains 34.1% of the variability. On the other hand, model gam6 has a $R^2_{adj} = 0.303$ and explains 42.2% of the variability. 
-Taking into account the gam and anova results the simplest and best model to predict FGm12 using inicial measures of the beginning of the clinical trial is model gam6.
 
 
 
