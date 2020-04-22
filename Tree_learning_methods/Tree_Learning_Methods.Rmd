@@ -1,0 +1,30 @@
+---
+title: "Tree learnign methods"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+```{r}
+library(dplyr)
+```
+
+```{r}
+data <- read.csv("soldat.csv")
+```
+
+```{r}
+summary(data)
+```
+
+Variable x71 has 787 missing values. This is som much that the hole colum gets dropped. 
+
+```{r}
+data <- select(data, -c("x71"))
+```
+
+```{r}
+pairs(data)
+```
+
