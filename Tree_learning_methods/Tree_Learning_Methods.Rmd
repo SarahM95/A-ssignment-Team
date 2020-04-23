@@ -14,6 +14,7 @@ params:
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
+
 ```{r}
 library(dplyr)
 library(caret)
@@ -28,10 +29,10 @@ data <- read.csv(params$myfile)
 summary(data)
 ```
 
-Variable x71 has 787 missing values. This is som much that the hole colum gets dropped. 
+Variable x71 has 787 missing values. This is so much that the hole colum gets dropped. 
 
 ```{r}
-data <- subset( data, select = -x71)
+data <- subset( data, select = -x71) # I am not really agree of dropping it just because it has that amount of NA's because we are working with 5631 observations so its a lot. We are deleting almost 5000 observations that are valid. Maybe we deleted anyway but I think that we should do a deeper analysis to delete it.  
 
 ```
 
@@ -41,8 +42,6 @@ data <- subset( data, select = -x71)
 #2 Splitting data
 
 ```{r}
-
-
 data$y=as.factor(data$y)
 
 set.seed(params$seed)
@@ -54,6 +53,7 @@ training <- data[-inTrain,]
 testing <- data[inTrain,]
 nrow(training)
 ```
+
 ```{r}
 CART_single_tree <- train (y ~ ., 
                    data=training, 
@@ -63,6 +63,7 @@ CART_single_tree
 #not sure if we can use this and do pruning.. 
 
 ```
+
 ```{r}
 CART_single_tree_2 <- train (y ~ ., 
                    data=training, 
@@ -104,12 +105,14 @@ cv.data=cv.tree(tree.data)
 names(cv.data)
 cv.data
 ```
+
 ```{r}
 prune.data=prune.tree(tree.data,best=3) #this is a local minumim #cv.data$size[which.min(cv.data$dev)])
 summary(prune.data)
 plot(prune.data)
 text(prune.data,pretty=0)
 ```
+
 ```{r}
 yhat_1=predict(prune.data,newdata=testing, type = "class")
 res <- table(yhat_1,testing$y)
