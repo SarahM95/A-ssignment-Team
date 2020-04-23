@@ -1,0 +1,175 @@
+---
+title: "Tree learnign methods"
+output: html_document
+params:
+  show_code: TRUE #possibility to not show the code just the results
+  seed: 1234
+  author: 'Group ??: author1, author2'
+  partition: 0.5
+  myDescription: 
+  myfile: "soldat.csv"
+
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+```{r}
+library(dplyr)
+library(caret)
+library(tree)
+```
+
+```{r}
+data <- read.csv(params$myfile)
+```
+
+```{r}
+summary(data)
+```
+
+Variable x71 has 787 missing values. This is som much that the hole colum gets dropped. 
+
+```{r}
+data <- subset( data, select = -x71)
+
+```
+
+```{r}
+#pairs(data)
+```
+#2 Splitting data
+
+```{r}
+
+
+data$y=as.factor(data$y)
+
+set.seed(params$seed)
+pt <- params$partition
+
+inTrain <- createDataPartition(y=data$y, p=pt, list=FALSE)
+str(inTrain)
+training <- data[-inTrain,]
+testing <- data[inTrain,]
+nrow(training)
+```
+```{r}
+CART_single_tree <- train (y ~ ., 
+                   data=training, 
+                   method="C5.0Tree",
+                   preProc=c("center","scale"))
+CART_single_tree
+#not sure if we can use this and do pruning.. 
+
+```
+```{r}
+CART_single_tree_2 <- train (y ~ ., 
+                   data=training, 
+                   method="rf",
+                   preProc=c("center","scale"),
+                   ntree = 1)
+          
+CART_single_tree_2
+```
+
+```{r}
+tunegrid <- expand.grid(.mtry = 2)
+
+CART_single_tree_2_2 <- train (y ~ ., 
+                   data=training, 
+                   method="rf",
+                   preProc=c("center","scale"),
+                   ntree = 1,
+                   tuneGrid= tunegrid )
+          
+CART_single_tree_2_2
+
+```
+
+
+#3 Pruned single tree:
+
+```{r}
+tree.data <- tree(y~., data, subset= inTrain, split="deviance")
+summary(tree.data)
+
+```
+
+
+
+```{r}
+set.seed(params$seed)
+cv.data=cv.tree(tree.data)
+names(cv.data)
+cv.data
+```
+```{r}
+prune.data=prune.tree(tree.data,best=3) #this is a local minumim #cv.data$size[which.min(cv.data$dev)])
+summary(prune.data)
+plot(prune.data)
+text(prune.data,pretty=0)
+```
+```{r}
+yhat_1=predict(prune.data,newdata=testing, type = "class")
+res <- table(yhat_1,testing$y)
+res
+accrcy <- sum(diag(res)/sum(res))
+accrcy
+#sqrd.error.sum <- mean((yhat_1-testing$y)^2)
+#sqrd.error.sum
+```
+
+# Random forrest:
+
+```{r}
+library(randomForest)
+library(mlbench)
+library(caret)
+library(e1071)
+
+control <- trainControl(method='repeatedcv', 
+                        number=10, 
+                        repeats=3, 
+                        search='grid')
+#create tunegrid with 15 values from 1:15 for mtry to tunning model. Our train function will change number of entry variable at each split according to tunegrid. 
+tunegrid <- expand.grid(.mtry = (1:15)) 
+
+#Do not run, it takes forever
+rf_gridsearch <- train(y ~ ., 
+                       data = training,
+                       method = 'rf',
+                       metric = 'Accuracy',
+                       tuneGrid = tunegrid)
+print(rf_gridsearch)
+```
+
+```{r}
+inTrain <- createDataPartition(y=data$y, p=.75, list=FALSE)
+str(inTrain)
+training <- data[inTrain,]
+testing <- data[-inTrain,]
+nrow(training)
+
+CART_rf <- train (y ~ ., 
+                   data=training, 
+                   method="rf", # random forest
+                   preProc=c("center","scale")
+                   )
+CART_rf
+```
+
+control <- trainControl(method='repeatedcv', 
+                        number=10, 
+                        repeats=3, 
+                        search='grid')
+
+```{r}
+yhat.rf = predict(CART3Model,newdata = testing, type = "raw")
+mean((yhat.rf-boston.test)^2)
+
+plot(yhat.rf, boston.test)
+abline(0,1)
+
+```
+
