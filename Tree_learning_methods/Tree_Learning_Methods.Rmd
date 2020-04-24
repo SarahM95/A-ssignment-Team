@@ -29,7 +29,177 @@ data <- read.csv(params$myfile)
 summary(data)
 ```
 
-Variable x71 has 787 missing values. This is so much that the hole colum gets dropped. 
+In the summary we can see that the only variable that has missing values is the $x71$ with a percentage of $13.97$%.
+
+
+
+```{r}
+data1 <- na.omit(data)
+c1 <- cor(data1)
+summary(c1)
+```
+
+We have some variables that are linearly correlated between them. I think we should start removing the ones that are highly correlated.
+
+```{r}
+library(tidyr)
+library(ggplot2)
+library(dplyr)
+
+subset0 <- data.frame(data$x51, data$x52, data$x61, data$x62) # mean less than 2 with high outliers
+
+subset1 <- data.frame(data$x13, data$x14, data$x15, data$x16, data$x17, data$x18, data$x24, data$x25, data$x26, data$x27, data$x28) # mean less than 1
+
+subset1.1 <- data.frame(data$x3, data$x4, data$x19, data$x20, data$x22, data$x23) # mean less than 2
+
+subset2 <- data.frame(data$x12, data$x21, data$x29, data$x30, data$x31, data$x32, data$x33, data$x34, data$x54, data$x60, data$x70) # mean between 2 - 10
+
+subset3 <- data.frame(data$x11, data$x39, data$x40, data$x41, data$x42, data$x43, data$x44, data$x45, data$x46, data$x53, data$x58, data$x59, data$x69, data$x71) # mean between 10 - 50
+
+subset4 <-data.frame(data$x10, data$x37, data$x38, data$x47, data$x48, data$x49, data$x50, data$x68) # mean between 50 - 100
+
+subset5 <- data.frame(data$x1, data$x2, data$x7, data$x8, data$x9, data$x35, data$x36, data$x56, data$x57, data$x63, data$x64, data$x65, data$x66, data$x67, data$x72) # mean between 100 - 1000
+
+subset6 <- data.frame(data$x5, data$x6, data$x55)  # mean higher than 1000
+
+
+subset0 %>% 
+  gather(key="compound", value="Val") %>%
+  ggplot( aes(x=compound, y=Val, fill=compound)) +
+    geom_violin()+
+  coord_flip()+
+  ggtitle("Plot means lower than 2 with outliers")
+
+
+subset1 %>% 
+  gather(key="compound", value="Val") %>%
+  ggplot( aes(x=compound, y=Val, fill=compound)) +
+    geom_violin()+
+  coord_flip()+
+  ggtitle("Plot means lower than 1")
+
+subset1.1 %>% 
+  gather(key="compound", value="Val") %>%
+  ggplot( aes(x=compound, y=Val, fill=compound)) +
+    geom_violin()+
+  coord_flip()+
+  ggtitle("Plot means lower than 2")
+
+subset2 %>% 
+  gather(key="compound", value="Val") %>%
+  ggplot( aes(x=compound, y=Val, fill=compound)) +
+    geom_violin()+
+  coord_flip()+
+  ggtitle("Plot means between 2 and 10")
+
+subset3 %>% 
+  gather(key="compound", value="Val") %>%
+  ggplot( aes(x=compound, y=Val, fill=compound)) +
+    geom_violin()+
+  coord_flip()+
+  ggtitle("Plot means between 10 and 50")
+
+subset4 %>% 
+  gather(key="compound", value="Val") %>%
+  ggplot( aes(x=compound, y=Val, fill=compound)) +
+    geom_violin()+
+  coord_flip()+
+  ggtitle("Plot means between 50 and 100")
+
+subset5 %>% 
+  gather(key="compound", value="Val") %>%
+  ggplot( aes(x=compound, y=Val, fill=compound)) +
+    geom_violin()+
+  coord_flip()+
+  ggtitle("Plot means between 100 and 1000")
+
+subset6 %>% 
+  gather(key="compound", value="Val") %>%
+  ggplot( aes(x=compound, y=Val, fill=compound)) +
+    geom_violin()+
+  coord_flip()+
+  ggtitle("Plot means greater than 1000")
+
+
+```
+
+Looking at this violin plots it can be seen that most of the components has quite small variance, but we can see some high outliers which can be problematic so we should be careful with the outliers on the analysis.
+
+As we have a lot of vairables I am going to do a PCA in order to check the importance of each varaible.
+
+```{r}
+# cluster
+
+X <- data1[,-73]
+X <- scale(X)
+
+C<-cor(X)
+Dvar<-as.dist(2*(1-C)) # as.dist  is a generic function. Its default method handles objects inheriting from class "dist".
+clusterVar<-hclust(Dvar,method= "average")
+plot(clusterVar,labels=colnames(X),cex=0.65)
+```
+
+In this dendrogram it can be seen that there are a lot of couples, a lot of variables which hasn't a lot of distance between them.
+
+I think it's okey to use here an average method but I have to check.
+
+
+```{r}
+data1
+
+pca <- princomp(data1[, 1:72])
+summary(pca)
+```
+
+Seeing this principal components we just look at the first $4$ principal components which together took more than the 95% of the data variability.
+
+Next step is check the importance that each variable has in each principal component. 
+
+```{r}
+l <- data.frame(pca$loadings[,1:3]) # in order to know the contribution of each variable to each principal component. In this case I just put the first three because this three explain more than 95%.
+
+names <- row.names(l)
+
+ggplot(l, aes(x = row.names(l), y=Comp.1)) +
+  geom_bar(stat="identity", fill=alpha("green", 0.3)) +
+  ylim(-100,120) +
+  theme_minimal() +
+  theme(
+    axis.text = element_blank(),
+    axis.title = element_blank(),
+    panel.grid = element_blank(),
+    plot.margin = unit(rep(-1,4), "cm") 
+  ) +
+  coord_polar(start = 0)
+
+
+
+names <- row.names(l)
+barplot(l[,1], names.arg = rownames(l), horiz = T)
+barplot(l[,2], names.arg = rownames(l), horiz = T)
+barplot(l[,3], names.arg = rownames(l), horiz = T)
+```
+
+```{r}
+
+l$t <- rowSums(l[, 1:3])
+
+barplot(l$t)
+
+l$sign <- l$t < 0.05 # I assume that if the contribution in the sum of the three mean principal components is not higher than 0.05 the variable is not important for data variation.
+
+head(l)
+
+nsign <- which(l$sign == T)
+nsign
+
+```
+
+Theorically all this variables are not important for the model construction. But I have to check all this before making a decision.
+
+
+
+**Variable x71 has 787 missing values. This is so much that the hole colum gets dropped. 
 
 ```{r}
 data <- subset( data, select = -x71) # I am not really agree of dropping it just because it has that amount of NA's because we are working with 5631 observations so its a lot. We are deleting almost 5000 observations that are valid. Maybe we deleted anyway but I think that we should do a deeper analysis to delete it.  
