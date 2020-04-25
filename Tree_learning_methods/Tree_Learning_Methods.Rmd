@@ -4,7 +4,7 @@ output: html_document
 params:
   show_code: TRUE #possibility to not show the code just the results
   seed: 1234
-  author: 'Group ??: author1, author2'
+  author: 'Gregoire Gasparini, Aurora Hofman, Beatriu Tort'
   partition: 0.5
   myDescription: 
   myfile: "soldat.csv"
@@ -32,20 +32,9 @@ summary(data)
 In the summary we can see that the only variable that has missing values is the $x71$ with a percentage of $13.97$%.
 
 ```{r}
-#How about doing this to solve na? it sets na to col average
 library(zoo)
-data <- na.aggregate(data)
+data <- na.aggregate(data)#set the average of the column on NA values
 ```
-
-
-```{r}
-#NOT SURE IF THIS IS A GOOD IDEA IT DELETES THE ENTIRE ROW.. 
-data1 <- na.omit(data)
-c1 <- cor(data1)
-summary(c1)
-```
-
-We have some variables that are linearly correlated between them. I think we should start removing the ones that are highly correlated.
 
 ```{r}
 library(tidyr)
@@ -131,15 +120,18 @@ subset6 %>%
 
 Looking at this violin plots it can be seen that most of the components has quite small variance, but we can see some high outliers which can be problematic so we should be careful with the outliers on the analysis.
 
-As we have a lot of vairables I am going to do a PCA in order to check the importance of each varaible.
 
 ```{r}
-# cluster
-
-X <- data1[,-73]
+X <- data[,-73]
 X <- scale(X)
 
 C<-cor(X)
+head(C)
+```
+
+We have some variables that are linearly correlated between them. I think we should start removing the ones that are highly correlated.
+
+```{r}
 Dvar<-as.dist(2*(1-C)) # as.dist  is a generic function. Its default method handles objects inheriting from class "dist".
 clusterVar<-hclust(Dvar,method= "average")
 plot(clusterVar,labels=colnames(X),cex=0.65)
@@ -147,52 +139,41 @@ plot(clusterVar,labels=colnames(X),cex=0.65)
 
 In this dendrogram it can be seen that there are a lot of couples, a lot of variables which hasn't a lot of distance between them.
 
-I think it's okey to use here an average method but I have to check.
 
+As we have a lot of vairables I am going to do a PCA in order to check the importance of each varaible.
 
 ```{r}
-data1
-
-pca <- princomp(data1[, 1:72])
+pca <- princomp(data[, 1:72])
 summary(pca)
 ```
 
-Seeing this principal components we just look at the first $4$ principal components which together took more than the 95% of the data variability.
+Looking to the principal components it's seen that with just three components we get almost the 95% of the data variation.
 
-Next step is check the importance that each variable has in each principal component. 
+Next step is check the importance that each variable has in each principal component, we are just going to check it for the first threee components. 
 
 ```{r}
 l <- data.frame(pca$loadings[,1:3]) # in order to know the contribution of each variable to each principal component. In this case I just put the first three because this three explain more than 95%.
 
 names <- row.names(l)
 
-ggplot(l, aes(x = row.names(l), y=Comp.1)) +
-  geom_bar(stat="identity", fill=alpha("green", 0.3)) +
-  ylim(-100,120) +
-  theme_minimal() +
-  theme(
-    axis.text = element_blank(),
-    axis.title = element_blank(),
-    panel.grid = element_blank(),
-    plot.margin = unit(rep(-1,4), "cm") 
-  ) +
-  coord_polar(start = 0)
-
-
-
 names <- row.names(l)
 barplot(l[,1], names.arg = rownames(l), horiz = T)
+title("First Principal Component")
 barplot(l[,2], names.arg = rownames(l), horiz = T)
+title("Second Principal Component")
 barplot(l[,3], names.arg = rownames(l), horiz = T)
+title("Third Principal Component")
 ```
 
-```{r}
+In this plots it can be seen that there is a lot of variables that don't contribut much on this principal components. For knowing which variables are the ones that don't contribute much on the principal components.
 
+```{r}
 l$t <- rowSums(l[, 1:3])
 
 barplot(l$t)
+title("Contribution of the variables to the first three PC")
 
-l$sign <- l$t < 0.05 # I assume that if the contribution in the sum of the three mean principal components is not higher than 0.05 the variable is not important for data variation.
+l$sign <- l$t < 0.5 # I assume that if the contribution in the sum of the three mean principal components is not higher than 0.05 the variable is not important for data variation.
 
 head(l)
 
@@ -201,22 +182,10 @@ nsign
 
 ```
 
-Theorically all this variables are not important for the model construction. But I have to check all this before making a decision.
+Checking this we can see that variables **`r nsign`** aren't important for explaining much of the variance of this dataset.
 
+As it's seen there is a lot of variables thats seems to be substracted from the original data but the decision that we make is to keep them and use this analysis to check if when we do the prunned tree and the random forest analysisi the variables that are not used are the same.
 
-
-**Variable x71 has 787 missing values. This is so much that the hole colum gets dropped. 
-
-```{r}
-data <- subset( data, select = -x71) # I am not really agree of dropping it just because it has that amount of NA's because we are working with 5631 observations so its a lot. We are deleting almost 5000 observations that are valid. Maybe we deleted anyway but I think that we should do a deeper analysis to delete it.  
-
-#I agree, na.aggregate is probably better :) 
-
-```
-
-```{r}
-#pairs(data)
-```
 #2 Splitting data
 
 ```{r}
