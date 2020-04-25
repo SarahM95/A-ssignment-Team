@@ -31,9 +31,15 @@ summary(data)
 
 In the summary we can see that the only variable that has missing values is the $x71$ with a percentage of $13.97$%.
 
+```{r}
+#How about doing this to solve na? it sets na to col average
+library(zoo)
+data <- na.aggregate(data)
+```
 
 
 ```{r}
+#NOT SURE IF THIS IS A GOOD IDEA IT DELETES THE ENTIRE ROW.. 
 data1 <- na.omit(data)
 c1 <- cor(data1)
 summary(c1)
@@ -204,6 +210,8 @@ Theorically all this variables are not important for the model construction. But
 ```{r}
 data <- subset( data, select = -x71) # I am not really agree of dropping it just because it has that amount of NA's because we are working with 5631 observations so its a lot. We are deleting almost 5000 observations that are valid. Maybe we deleted anyway but I think that we should do a deeper analysis to delete it.  
 
+#I agree, na.aggregate is probably better :) 
+
 ```
 
 ```{r}
@@ -224,6 +232,7 @@ testing <- data[inTrain,]
 nrow(training)
 ```
 
+#Testing
 ```{r}
 CART_single_tree <- train (y ~ ., 
                    data=training, 
@@ -256,18 +265,19 @@ CART_single_tree_2_2 <- train (y ~ .,
           
 CART_single_tree_2_2
 
+
+plot(CART_single_tree_2_2$finalModel)
+text(CART_single_tree_2_2$finalModel)
 ```
 
 
-#3 Pruned single tree:
+#3 Pruned single tree, oldfasion way :) :
 
 ```{r}
 tree.data <- tree(y~., data, subset= inTrain, split="deviance")
 summary(tree.data)
 
 ```
-
-
 
 ```{r}
 set.seed(params$seed)
@@ -314,9 +324,11 @@ rf_gridsearch <- train(y ~ .,
                        method = 'rf',
                        metric = 'Accuracy',
                        tuneGrid = tunegrid)
-print(rf_gridsearch)
+print(rf_gridsearch) #choses the optimum value!! 
 ```
 
+
+need to make a loop to tune of ntree with the optimum mtry
 ```{r}
 inTrain <- createDataPartition(y=data$y, p=.75, list=FALSE)
 str(inTrain)
@@ -332,11 +344,7 @@ CART_rf <- train (y ~ .,
 CART_rf
 ```
 
-control <- trainControl(method='repeatedcv', 
-                        number=10, 
-                        repeats=3, 
-                        search='grid')
-
+Make predictions with the final model and get accuratcy statistics
 ```{r}
 yhat.rf = predict(CART3Model,newdata = testing, type = "raw")
 mean((yhat.rf-boston.test)^2)
@@ -345,4 +353,13 @@ plot(yhat.rf, boston.test)
 abline(0,1)
 
 ```
+
+Use varImp to get the variable importance. 
+
+#5
+
+Just compare the models
+
+
+#6
 
