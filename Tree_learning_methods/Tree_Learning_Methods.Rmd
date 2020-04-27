@@ -272,33 +272,50 @@ print(rf_gridsearch) #choses the optimum value!!
 
 need to make a loop to tune of ntree with the optimum mtry
 ```{r}
-mtry.opt <- rf.gridsearch$mtry
-
-accuratcy.list <- rep(0, 1000)
+mtry.opt <- which.max(rf_gridsearch$results$Accuracy)
+accuratcy.list <- rep(0, 20)
 
 control <- trainControl(method='repeatedcv', 
                         number=10, 
                         repeats=3)
 
-for (i in 1:1000){
+for (i in seq(1,1000, by = 50)){
   model <- train(y ~ ., 
-                       data = training,
-                       method = 'rf',
-                       metric = 'Accuracy',
-                       mtry = mtry.opt, 
-                       trControl=control)
+                data = training,
+                method = 'rf',
+                metric = 'Accuracy',
+                tuneGrid = data.frame(mtry = mtry.opt),
+                ntree = i,
+                trControl=control)
   yhat <- predict(model, newdata = testing, type = "raw")
   res <- table(yhat,testing$y)
-  accrcy.list[i] <- sum(diag(res)/sum(res))
+  accuratcy.list[i] <- sum(diag(res)/sum(res))
+  print(sum(diag(res)/sum(res)))
 }
 
 
 ```
 
 ```{r}
+x = seq(1,1000, by = 50)
+y = seq(1,1000, by = 50)
+j = 1
+for (i in seq(1,1000, by = 50)){
+  y[j] = accuratcy.list[i]
+  j = j+1
+}
+
+plot(x, y)
+
+ntree.opt = which.max(accuratcy.list)
+ntree.opt
+```
+
+
+```{r}
 ntree <- which.max(accuratcy.list)
 
-ggplot(data = tibble(x = seq(1, 1000, 1), accuratcy.list), aes(x, accuratcy.list)) + geom_line() + geom_vline(x = ntree)
+ggplot(data = tibble(x = seq(1, 1000, by = 50), y), aes(x, y)) + geom_point() + geom_vline(xintercept =ntree) +  geom_hline(yintercept = y[which.max(y)])
 
 ```
 ```{r}
@@ -311,8 +328,8 @@ rf_final <- train(y ~ .,
                        data = training,
                        method = 'rf',
                        metric = 'Accuracy',
-                       ntree = ntree,
-                       mtry = mtry.opt,
+                       ntree = ntree.opt,
+                       tuneGrid = data.frame(mtry = mtry.opt),
                        trControl=control)
 ```
 
