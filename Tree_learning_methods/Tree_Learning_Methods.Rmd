@@ -241,6 +241,7 @@ accrcy
 #sqrd.error.sum <- mean((yhat_1-testing$y)^2)
 #sqrd.error.sum
 ```
+The accuracy that we obtain in this model is **`r accrcy`**.
 
 # Random forrest:
 
@@ -418,5 +419,5 @@ for (i in treeDepth) {
 plot(treeDepth,accrcyRates)
 ```
 
-```
+
 
