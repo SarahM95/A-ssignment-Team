@@ -6,7 +6,7 @@ params:
   seed: 1234
   author: 'Gregoire Gasparini, Aurora Hofman, Beatriu Tort'
   partition: 0.5
-  myDescription: 
+  myDescription: 'The data set contains date on 5631 compound where a solubility screen has been preformed where all compounds were classified as eather soluble of insoluble. Fro each compound 72 contineous variables were recorded. '
   myfile: "soldat.csv"
 
 ---
@@ -21,15 +21,22 @@ library(caret)
 library(tree)
 ```
 
+#1 Exploratory data analysis
+
 ```{r}
 data <- read.csv(params$myfile)
 ```
+
+`r param$myDescription`
+
+A short exploratory data analysis is preformed to become familiar with the dateset.
+
 
 ```{r}
 summary(data)
 ```
 
-In the summary we can see that the only variable that has missing values is $x71$ with a percentage of $13.97$%. To preform analysis one can not have missing values hence we decided to substitute the NA values with the column mean in stead of for example deleting the entire colum or all rows with missin values. 
+In the summary one can see that the only variable that has missing values is $x71$ with a percentage of $13.97$%. To preform analysis one can not have missing values hence we decided to substitute the NA values with the column mean in stead of for example deleting the entire colum or all rows with missin values. 
 
 ```{r}
 library(zoo)
@@ -58,7 +65,6 @@ subset4 <-data.frame(data$x10, data$x37, data$x38, data$x47, data$x48, data$x49,
 subset5 <- data.frame(data$x1, data$x2, data$x7, data$x8, data$x9, data$x35, data$x36, data$x56, data$x57, data$x63, data$x64, data$x65, data$x66, data$x67, data$x72) # mean between 100 - 1000
 
 subset6 <- data.frame(data$x5, data$x6, data$x55)  # mean higher than 1000
-
 
 subset0 %>% 
   gather(key="compound", value="Val") %>%
@@ -224,30 +230,31 @@ cv.data=cv.tree(tree.data)
 names(cv.data)
 cv.data
 ```
-
+One can see there is a local minimum at $size = 2$. Since it does not have that much sence to choose the actual mimimum sinse this would not prune the tree at all. 
 ```{r}
-prune.data=prune.tree(tree.data,best=3) #this is a local minumim #cv.data$size[which.min(cv.data$dev)])
+prune.data=prune.tree(tree.data,best=2) #this is a local minumim 
 summary(prune.data)
 plot(prune.data)
 text(prune.data,pretty=0)
 ```
 
+Make predictions on the test set to evaluate the classifier.
 ```{r}
 yhat_1=predict(prune.data,newdata=testing, type = "class")
 res <- table(yhat_1,testing$y)
 res
 accrcy <- sum(diag(res)/sum(res))
-accrcy
-#sqrd.error.sum <- mean((yhat_1-testing$y)^2)
-#sqrd.error.sum
+
 ```
+The tree has an accuratcy of `r accrcy`. This is not particularly good and we will se later that the random forrest obtains better results. 
 
 # Random forrest:
 
-create tunegrid with 15 values from 1:15 for mtry to tunning model. Our train function will change number of entry variable at each split according to tunegrid.
-```{r}
+In the random forrest model one needs to decide how many variables $mtry$ are assesed in each node and how many trees $ntree$ are used in the forrest. Caret only has tuning for the number of parameters assessed in each node and this tuningprocess is quite slow the decition is made to take a gready approch towards tuning these parameters. First we use tuning by caret to tune the number of variables. Then the optimum is chosen and used when tuning the number of trees. The order is decided this way since the number of parameters assesed in each node har a bigger inpack on the result than the number of trees. 
 
-#Do not run, it takes forever
+A tunegrid is created with 15 values from 1:15 for $mtry$ to tun the model. Our train function will change number of entry variable at each split according to the tunegrid. The default numebr of trees is $500$. 
+```{r}
+#Very slow
 library(randomForest)
 library(mlbench)
 library(caret)
@@ -266,11 +273,11 @@ rf_gridsearch <- train(y ~ .,
                        metric = 'Accuracy',
                        tuneGrid = tunegrid, 
                        trControl=control)
-print(rf_gridsearch) #choses the optimum value!! 
+print(rf_gridsearch) 
 ```
+Eventually the optimum value for $mtry$ si chosen automatically by the algoritm. 
 
-
-need to make a loop to tune of ntree with the optimum mtry
+A loop is made to tune for $ntree$ with the optimum value for $mtry$. This is also a rather slow process hence the decition is made to only chech for number of trees that are multiples of 50. 
 ```{r}
 mtry.opt <- which.max(rf_gridsearch$results$Accuracy)
 accuratcy.list <- rep(0, 20)
@@ -290,22 +297,16 @@ for (i in seq(1,1000, by = 50)){
   yhat <- predict(model, newdata = testing, type = "raw")
   res <- table(yhat,testing$y)
   accuratcy.list[i] <- sum(diag(res)/sum(res))
-  print(sum(diag(res)/sum(res)))
+  #print(sum(diag(res)/sum(res)))
 }
 
 
 ```
 
+As one cna see with the exeption of $ntree= 50 $ there is very little difference in the performance of each itteration. THis supports the assumption that $mtry$ has a greater inpack on the result. 
+
 ```{r}
 x = seq(1,1000, by = 50)
-y = seq(1,1000, by = 50)
-j = 1
-for (i in seq(1,1000, by = 50)){
-  y[j] = accuratcy.list[i]
-  j = j+1
-}
-
-plot(x, y)
 
 ntree.opt = which.max(accuratcy.list)
 ntree.opt
@@ -315,7 +316,7 @@ ntree.opt
 ```{r}
 ntree <- which.max(accuratcy.list)
 
-ggplot(data = tibble(x = seq(1, 1000, by = 50), y), aes(x, y)) + geom_point() + geom_vline(xintercept =ntree) +  geom_hline(yintercept = y[which.max(y)])
+ggplot(data = tibble(x = seq(1, 1000, by = 50), accuratcy.list), aes(x, accuratcy.list)) + geom_point() + geom_vline(xintercept =ntree, colour = "blue") +  geom_hline(yintercept = y[which.max(accuratcy.list)], colour = "blue")
 
 ```
 ```{r}
@@ -338,22 +339,30 @@ Make predictions with the final model and get accuratcy statistics
 yhat_final <- predict(rf_final, newdata = testing, type = "raw")
 res <- table(yhat_final,testing$y)
 res
-accrcy <- sum(diag(res)/sum(res))
-accrcy
-```
+accrcy_rf <- sum(diag(res)/sum(res))
 
-Use varImp to get the variable importance. 
+```
+Now the accuratcy obtained is `r accrcy_rf`. This is much higher thtn with the single tree from earlier. 
+
+Use varImp to get the variable importance, the 10 most important are shown. 
 ```{r}
 varImp(rf_final)
 ```
 
-Need to compare to orriginal results
-#5
+Variables originally deamed less important by PCA analytics:
+```{r}
+nsign
+```
+As one can see there is some inconsistency here. For example variable $x39$ and $x40$ where deamed not so important by the PCA analysis but are the second and third most important in the random forrest. 
+
+#5 Comparation of models:
+
+The pruend tree had an accuratcy of `r accrcy` while the random forrest has an accuratcy of `r accrcy_rf`. The random forrest preforms significally better. 
 
 Just compare the models
 
 
-#6
+#6 Gradiant Boosting
 
 
 #Using gbm function as teacher : Generalized Boosted Regression Modeling
