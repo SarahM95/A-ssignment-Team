@@ -1,14 +1,17 @@
 ---
 title: "Tree learnign methods"
-output: html_document
 params:
-  show_code: TRUE #possibility to not show the code just the results
-  seed: 1234
-  author: 'Gregoire Gasparini, Aurora Hofman, Beatriu Tort'
+  author: "Gregoire Gasparini, Aurora Hofman, Beatriu Tort"
+  myDescription: 'The data set contains date on 5631 compound where a solubility screen
+    has been preformed where all compounds were classified as eather soluble of insoluble.
+    Fro each compound 72 contineous variables were recorded. '
+  myfile: soldat.csv
   partition: 0.5
-  myDescription: 
-  myfile: "soldat.csv"
-
+  seed: 1234
+  show_code: yes
+output:
+  word_document: default
+  html_document: default
 ---
 
 ```{r setup, include=FALSE}
@@ -21,19 +24,26 @@ library(caret)
 library(tree)
 ```
 
+#1 Exploratory data analysis
+
 ```{r}
 data <- read.csv(params$myfile)
 ```
+
+`r params$myDescription`
+
+A short exploratory data analysis is preformed to become familiar with the dateset.
+
 
 ```{r}
 summary(data)
 ```
 
-In the summary we can see that the only variable that has missing values is $x71$ with a percentage of $13.97$%. To preform analysis one can not have missing values hence we decided to substitute the NA values with the column mean in stead of for example deleting the entire colum or all rows with missin values. 
+In the summary one can see that the only variable that has missing values is $x71$ with a percentage of $13.97$%. To preform analysis one can not have missing values hence we decided to substitute the $NA$ values with the column mean in stead of for example deleting the entire colum or all rows with missin values. 
 
 ```{r}
 library(zoo)
-data <- na.aggregate(data) #set the average of the column on NA values
+data <- na.aggregate(data) # set the average of the column on NA values
 ```
 
 To check the variability of the data and how they are distributed we made violin plots. As we have a lot of variables the data is split with regards to the column mean in order to make the observation easier.
@@ -58,7 +68,6 @@ subset4 <-data.frame(data$x10, data$x37, data$x38, data$x47, data$x48, data$x49,
 subset5 <- data.frame(data$x1, data$x2, data$x7, data$x8, data$x9, data$x35, data$x36, data$x56, data$x57, data$x63, data$x64, data$x65, data$x66, data$x67, data$x72) # mean between 100 - 1000
 
 subset6 <- data.frame(data$x5, data$x6, data$x55)  # mean higher than 1000
-
 
 subset0 %>% 
   gather(key="compound", value="Val") %>%
@@ -146,9 +155,9 @@ In this dendrogram it can be seen that there are a lot of couples, a lot of vari
 
 ##Could we say:
 
-In this dendrogram it can be seen that there are a lot of clusters meaning a lot of the variables are close to each other with respect to the mean.
+In this dendrogram it can be seen that there are a lot of clusters meaning a lot of the variables are close to each other with respect to the correlation mean distance. So it's saying, as we commented before that there is a lot of variables that are close correlated.
 
-#Queation: Why is it relevant for us to know that a lot of the parameters has similar means? 
+#Queation: Why is it relevant for us to know that a lot of the parameters has similar means? It is not really saying that they have similar means it's saying that they behave similar, it's like a way to plot the correlations computed before.
 
 As we have a lot of vairables PCA analysis is preformed in order to check the importance of each varaible.
 
@@ -175,7 +184,7 @@ barplot(l[,3], names.arg = rownames(l), horiz = T)
 title("Third Principal Component")
 ```
 
-In this plots it can be seen that there is a lot of variables that don't contribut much to the principal components. To know which variables are less important we sum the contribution of the variables to the three first principal components and looked at  which ones had a sum less than $0.05$. These arethe ones that can be considered removed if one would want to simplify the analytics. 
+In this plots it can be seen that there is a lot of variables that don't contribut much to the principal components. To know which variables are less important we sum the contribution of the variables to the three first principal components and looked at  which ones had a sum less than $0.05$. These are the ones that can be considered removed if one would want to simplify the analytics. 
 
 ```{r}
 l$t <- rowSums(l[, 1:3])
@@ -225,30 +234,38 @@ names(cv.data)
 cv.data
 ```
 
+One can see there is a local minimum at $size = 2$. Since it does not have that much sence to choose the actual mimimum sinse this would not prune the tree at all. 
+
 ```{r}
-prune.data=prune.tree(tree.data,best=3) #this is a local minumim #cv.data$size[which.min(cv.data$dev)])
+prune.data=prune.tree(tree.data,best=2) #this is a local minumim 
 summary(prune.data)
 plot(prune.data)
 text(prune.data,pretty=0)
 ```
+
+Make predictions on the test set to evaluate the classifier.
 
 ```{r}
 yhat_1=predict(prune.data,newdata=testing, type = "class")
 res <- table(yhat_1,testing$y)
 res
 accrcy <- sum(diag(res)/sum(res))
-accrcy
-#sqrd.error.sum <- mean((yhat_1-testing$y)^2)
-#sqrd.error.sum
+
 ```
+<<<<<<< HEAD
 The accuracy that we obtain in this model is **`r accrcy`**.
+=======
+The tree has an accuratcy of `r accrcy`. This is not particularly good and we will se later that the random forrest obtains better results. 
+>>>>>>> 28d9860e98ffcd3e0309d45cdc1668f51409ecce
 
 # Random forrest:
 
-create tunegrid with 15 values from 1:15 for mtry to tunning model. Our train function will change number of entry variable at each split according to tunegrid.
-```{r}
+In the random forrest model one needs to decide how many variables $mtry$ are assesed in each node and how many trees $ntree$ are used in the forrest. Caret only has tuning for the number of parameters assessed in each node and this tuningprocess is quite slow the decition is made to take a gready approch towards tuning these parameters. First we use tuning by caret to tune the number of variables. Then the optimum is chosen and used when tuning the number of trees. The order is decided this way since the number of parameters assesed in each node had a bigger inpack on the result than the number of trees. 
 
-#Do not run, it takes forever
+A tunegrid is created with 15 values from 1:15 for $mtry$ to tun the model. Our train function will change number of entry variable at each split according to the tunegrid. The default numebr of trees is $500$. 
+
+```{r}
+#Very slow
 library(randomForest)
 library(mlbench)
 library(caret)
@@ -267,39 +284,51 @@ rf_gridsearch <- train(y ~ .,
                        metric = 'Accuracy',
                        tuneGrid = tunegrid, 
                        trControl=control)
-print(rf_gridsearch) #choses the optimum value!! 
+print(rf_gridsearch) 
 ```
 
+Eventually the optimum value for $mtry$ si chosen automatically by the algoritm. 
 
-need to make a loop to tune of ntree with the optimum mtry
+A loop is made to tune for $ntree$ with the optimum value for $mtry$. This is also a rather slow process hence the decition is made to only chech for number of trees that are multiples of 50. 
+
 ```{r}
-mtry.opt <- rf.gridsearch$mtry
-
-accuratcy.list <- rep(0, 1000)
+mtry.opt <- which.max(rf_gridsearch$results$Accuracy)
+accuratcy.list <- rep(0, 20)
 
 control <- trainControl(method='repeatedcv', 
                         number=10, 
                         repeats=3)
 
-for (i in 1:1000){
+for (i in seq(1,1000, by = 50)){
   model <- train(y ~ ., 
-                       data = training,
-                       method = 'rf',
-                       metric = 'Accuracy',
-                       mtry = mtry.opt, 
-                       trControl=control)
+                data = training,
+                method = 'rf',
+                metric = 'Accuracy',
+                tuneGrid = data.frame(mtry = mtry.opt),
+                ntree = i,
+                trControl=control)
   yhat <- predict(model, newdata = testing, type = "raw")
   res <- table(yhat,testing$y)
-  accrcy.list[i] <- sum(diag(res)/sum(res))
+  accuratcy.list[i] <- sum(diag(res)/sum(res))
+  #print(sum(diag(res)/sum(res)))
 }
-
-
 ```
+
+As one can see with the exeption of $ntree= 50 $ there is very little difference in the performance of each itteration. THis supports the assumption that $mtry$ has a greater inpack on the result. 
+
+```{r}
+x = seq(1,1000, by = 50)
+
+ntree.opt = which.max(accuratcy.list)
+ntree.opt
+```
+
 
 ```{r}
 ntree <- which.max(accuratcy.list)
 
-ggplot(data = tibble(x = seq(1, 1000, 1), accuratcy.list), aes(x, accuratcy.list)) + geom_line() + geom_vline(x = ntree)
+#Its giving an error when i try to run it but I don't know if its something of my computer...
+ggplot(data = tibble(x = seq(1, 1000, by = 50), accuratcy.list), aes(x, accuratcy.list)) + geom_point() + geom_vline(xintercept =ntree, colour = "blue") +  geom_hline(yintercept = y[which.max(accuratcy.list)], colour = "blue")
 
 ```
 ```{r}
@@ -312,32 +341,48 @@ rf_final <- train(y ~ .,
                        data = training,
                        method = 'rf',
                        metric = 'Accuracy',
-                       ntree = ntree,
-                       mtry = mtry.opt,
+                       ntree = ntree.opt,
+                       tuneGrid = data.frame(mtry = mtry.opt),
                        trControl=control)
 ```
 
 Make predictions with the final model and get accuratcy statistics
+
 ```{r}
 yhat_final <- predict(rf_final, newdata = testing, type = "raw")
 res <- table(yhat_final,testing$y)
 res
-accrcy <- sum(diag(res)/sum(res))
-accrcy
+accrcy_rf <- sum(diag(res)/sum(res))
+
 ```
 
-Use varImp to get the variable importance. 
+Now the accuratcy obtained is `r accrcy_rf`. This is much higher thtn with the single tree from earlier. 
+
+Use varImp to get the variable importance, the 10 most important are shown. 
+
 ```{r}
 varImp(rf_final)
 ```
 
-Need to compare to orriginal results
-#5
+Variables originally deamed less important by PCA analytics:
+
+```{r}
+nsign
+```
+
+As one can see there is some inconsistency here. For example variable $x39$ and $x40$ where deamed not so important by the PCA analysis but are the second and third most important in the random forrest. 
+
+#5 Comparation of models:
+
+The pruend tree had an accuratcy of `r accrcy` while the random forrest has an accuratcy of `r accrcy_rf`. The random forrest preforms significally better. 
+
+Both models are using the same variables??
+
 
 Just compare the models
 
 
-#6
+#6 Gradiant Boosting
 
 
 #Using gbm function as teacher : Generalized Boosted Regression Modeling
@@ -352,6 +397,7 @@ Concerning the use of the function :
 Moreover, it is important toreplace binary variables {-1,1} in {0,1} from ou training data set at the begining to use this function.
 
 ```{r}
+library(gbm)
 set.seed(2)
 #Replace binary variables by {0,1}
 training$y <- ifelse(training$y==-1,0,1)
@@ -405,10 +451,11 @@ nTree <- nTreeV[which(max(accrcyRates)==accrcyRates)]
 treeDepth <- c(3,4,8,16)
 accrcyRates <- rep(0,length(treeDepth))
 
+# It's not working in my computer
 k <- 0
 for (i in treeDepth) {
   k = k +1
-  boost.compounds=gbm(y~.,data=training,distribution="adaboost",n.trees=nTree,interaction.depth=i)
+  boost.compounds=gbm(y~.,data=training,distribution="adaboost", n.trees=nTree,interaction.depth=i)
   yhat_gbm =predict(boost.compounds,newdata=testing,n.trees=nTree, type = "response")
   yhat_gbm <- ifelse(yhat_gbm < 0.5,0,1)
   res <- table(yhat_gbm,testing$y)
