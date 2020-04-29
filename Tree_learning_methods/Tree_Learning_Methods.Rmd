@@ -153,7 +153,7 @@ plot(clusterVar,labels=colnames(X),cex=0.65)
 
 In this dendrogram it can be seen that there are a lot of clusters meaning a lot of the variables are close to each other with respect to the correlation mean distance. So it's saying, as we commented before that there is a lot of variables that are close correlated.
 
-As we have a lot of vairables PCA analysis is preformed in order to check the importance of each varaible.
+As we have a lot of vairables PCA analysis is preformed in order to check the which variables explain much of the variablility of the data.
 
 ```{r}
 pca <- princomp(data[, 1:72])
@@ -367,7 +367,7 @@ As one can see there is some inconsistency here. For example variable $x39$ and 
 
 The pruend tree had an accuratcy of `r accrcy` while the random forrest has an accuratcy of `r accrcy_rf`. The random forrest preforms significally better. 
 
-Both models are using the same variables??
+###Both models are using the same variables?? Maybe we should include that in the prunned tree and compare both with that too? I can do that tomorrow if you want.
 
 
 Just compare the models
