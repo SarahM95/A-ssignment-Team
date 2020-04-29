@@ -151,13 +151,7 @@ clusterVar<-hclust(Dvar,method= "average")
 plot(clusterVar,labels=colnames(X),cex=0.65)
 ```
 
-In this dendrogram it can be seen that there are a lot of couples, a lot of variables which hasn't a lot of distance between them.
-
-##Could we say:
-
 In this dendrogram it can be seen that there are a lot of clusters meaning a lot of the variables are close to each other with respect to the correlation mean distance. So it's saying, as we commented before that there is a lot of variables that are close correlated.
-
-#Queation: Why is it relevant for us to know that a lot of the parameters has similar means? It is not really saying that they have similar means it's saying that they behave similar, it's like a way to plot the correlations computed before.
 
 As we have a lot of vairables PCA analysis is preformed in order to check the importance of each varaible.
 
@@ -253,10 +247,7 @@ accrcy <- sum(diag(res)/sum(res))
 
 ```
 <<<<<<< HEAD
-The accuracy that we obtain in this model is **`r accrcy`**.
-=======
-The tree has an accuratcy of `r accrcy`. This is not particularly good and we will se later that the random forrest obtains better results. 
->>>>>>> 28d9860e98ffcd3e0309d45cdc1668f51409ecce
+The accuracy that we obtain in this model is `r accrcy`.
 
 # Random forrest:
 
@@ -390,26 +381,34 @@ To run gradient boosting algorithm we use GLM funcion.
 
 Concerning the use of the function :
   
-- n.trees is equivalent to the number of iterations and the number of basis functions in the additive expansion.
+  - n.trees is equivalent to the number of iterations and the number of basis functions in the additive expansion.
 
-- We begin with trees of 4 nodes to study the iteration influence
+  - we use stumps to study iteration influence. In this case, we then choose interaction.depth equal to 1.
 
-Moreover, it is important toreplace binary variables {-1,1} in {0,1} from ou training data set at the begining to use this function.
+Moreover, it is important to replace binary variables (due to the fact that we are working on a classification) {-1,1} by {0,1} from our training data set at the begining to use this function and to fit the model.
 
 ```{r}
-library(gbm)
+library("ISLR")
+library("gbm")
+library("pROC")
+
+library(tidyr)
+library(ggplot2)
+library(dplyr)
+
 set.seed(2)
 #Replace binary variables by {0,1}
 training$y <- ifelse(training$y==-1,0,1)
 
-#Fitting the model & predictio
-boost.compounds=gbm(y~.,data=training,distribution="adaboost",n.trees=2000,interaction.depth=4)
+#Fitting the model & prediction
+boost.compounds=gbm(y~.,data=training,distribution="adaboost",n.trees=2000,interaction.depth=1)
 
 #Evaluating the error for testing data set
 yhat_gbm_2000 =predict(boost.compounds,newdata=testing,n.trees=2000, type = "response")
 yhat_gbm_2000 <- ifelse(yhat_gbm_2000 < 0.5,0,1)
 res <- table(yhat_gbm_2000,testing$y)
 accrcy_gbm_test_2000 <- sum(diag(res)/sum(res))
+accrcy_gbm_test_2000
 
 #Evaluating the error for training data set
 yhat_gbm_train_2000 =predict(boost.compounds,newdata=training,n.trees=2000, type = "response")
@@ -419,19 +418,21 @@ accrcy_gbm_train_2000 <- sum(diag(res)/sum(res))
 accrcy_gbm_train_2000
 ```
 
-As we can see, the missclasification rate is really lower on training data set than on testing data set, which seems legit (99,9% againt 78.6%).
+As we can see, the accuracy rate is really higher on training data (around 85%) set than on testing data set (around 75%), which is expected due to the fact that the model is fitted on training data set.
+
+We should retain the missclassification rate of testing data set. We can notice that the model for 2000 iterations with stumps as trees is more efficient than pruned single tree model but less efficient that with a forest trees model.
 
 Then we can put forward the influence of the number of iterations (ie. the number of trees) on the missclassification on the testing data set:
   
 ```{r}
-sampling = 10
+sampling = 20
 accrcyRates <- rep(0,sampling)
 firstValue = 100
-lastValue = 2000
+lastValue = 3000
 nTreeV = floor(seq(from = firstValue, to = lastValue, by = (lastValue - firstValue)/(sampling-1)))
 
 for (i in 1:sampling) {
-  boost.compounds=gbm(y~.,data=training,distribution="adaboost",n.trees=nTreeV[i],interaction.depth=4)
+  boost.compounds=gbm(y~.,data=training,distribution="adaboost",n.trees=nTreeV[i],interaction.depth=1)
   yhat_gbm =predict(boost.compounds,newdata=testing,n.trees=nTreeV[i], type = "response")
   yhat_gbm <- ifelse(yhat_gbm < 0.5,0,1)
   res <- table(yhat_gbm,testing$y)
@@ -439,23 +440,25 @@ for (i in 1:sampling) {
   accrcyRates[i] <- err_gbm
 }
 
-plot(nTreeV,accrcyRates)
-
+x <- data.frame(nTreeV,1-accrcyRates)
+ggplot(x) + aes(x=nTreeV, y=1-accrcyRates) + geom_point()+ggtitle("Influence of iteration number on missclassification")
 ```  
 
-We can then study the influence of trees maximum depth :
+On this plot, as expected, we can notice that missclassification as a function of iteration number is more or less a decreasing function. We can also notice that above a certain number of iteration, the functions is almost constant.
+
+
+We can then study the influence of trees maximum depth to optimize our solution :
   
 ```{r}
 #We take the n.tree value with the best accrcyRates
 nTree <- nTreeV[which(max(accrcyRates)==accrcyRates)]
-treeDepth <- c(3,4,8,16)
+treeDepth <- c(1,4,8,16)
 accrcyRates <- rep(0,length(treeDepth))
 
-# It's not working in my computer
 k <- 0
 for (i in treeDepth) {
   k = k +1
-  boost.compounds=gbm(y~.,data=training,distribution="adaboost", n.trees=nTree,interaction.depth=i)
+  boost.compounds=gbm(y~.,data=training,distribution="adaboost",n.trees=nTree,interaction.depth=i)
   yhat_gbm =predict(boost.compounds,newdata=testing,n.trees=nTree, type = "response")
   yhat_gbm <- ifelse(yhat_gbm < 0.5,0,1)
   res <- table(yhat_gbm,testing$y)
@@ -463,8 +466,12 @@ for (i in treeDepth) {
   accrcyRates[k] <- err_gbm
 }
 
-plot(treeDepth,accrcyRates)
+x <- data.frame(treeDepth,1-accrcyRates)
+ggplot(x, aes(x=treeDepth, y=1-accrcyRates)) + geom_point()+ggtitle("Influence of trees depth on missclassification")
 ```
 
+On this plot, as expected again, we can see that missclassification in function of trees depth is more or less a decreasing function.
 
-
+In the best condition (which means with trees depth equal to 16) we can reach 81% of accuracy rate. Then, we can put foward that this algorithm is the most efficient (for memory, random forest model reacht 79% of accuracy rate).
+  
+To conclude we can say that trees depth & iteration number are two factor which can be used to optimize our classification. Nevertheless, it important to be careful because it is two factors very greedy in ressource.
