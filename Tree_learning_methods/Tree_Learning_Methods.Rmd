@@ -125,8 +125,6 @@ subset6 %>%
     geom_violin()+
   coord_flip()+
   ggtitle("Plot means greater than 1000")
-
-
 ```
 
 Looking at this violin plots it can be seen that a lot of the components have quite small variance. However we can see some high outliers which could be problematic. This is noted when moving on to firther analysis.
@@ -156,45 +154,48 @@ In this dendrogram it can be seen that there are a lot of clusters meaning a lot
 As we have a lot of vairables PCA analysis is preformed in order to check the which variables explain much of the variablility of the data.
 
 ```{r}
-pca <- princomp(data[, 1:72])
+pca <- princomp(X)
 summary(pca)
 ```
 
-Looking to the principal components one can see that with just three components explain almost 95% of the data variation.
+Looking to the principal components one can see that 17 components are needed in order to explain the 95% of the data variation.
 
-The next step is to check the importance that each variable has in each principal component. To simplify this is only checked for the first threee components. 
+The next step is to check the importance that each variable has in each of the 17th principal components which we consider significant.
 
 ```{r}
-l <- data.frame(pca$loadings[,1:3]) 
+l <- data.frame(pca$loadings[,1:17]) 
+head(l)
 
-names <- row.names(l)
 
 names <- row.names(l)
 barplot(l[,1], names.arg = rownames(l), horiz = T)
-title("First Principal Component")
+title("1st Principal Component")
 barplot(l[,2], names.arg = rownames(l), horiz = T)
-title("Second Principal Component")
+title("2nd Principal Component")
 barplot(l[,3], names.arg = rownames(l), horiz = T)
-title("Third Principal Component")
+title("3rd Principal Component")
+barplot(l[,4], names.arg = rownames(l), horiz = T)
+title("4th Principal Component")
+barplot(l[,5], names.arg = rownames(l), horiz = T)
+title("5th Principal Component")
 ```
 
-In this plots it can be seen that there is a lot of variables that don't contribut much to the principal components. To know which variables are less important we sum the contribution of the variables to the three first principal components and looked at  which ones had a sum less than $0.05$. These are the ones that can be considered removed if one would want to simplify the analytics. 
+In this plots it can be seen that there is a lot of variables that contriute in each of the principal components. To know which are the most important variables and if there is any variable that can be removed from the dataset I am going to do a contribution plot in order to check if there is any variable that is not  significantly contributing to any of the 17PC which explain the 95% of the variance.
 
 ```{r}
-l$t <- rowSums(l[, 1:3])
+library(factoextra)
+contrib <- fviz_contrib(pca, choice="var", axes = 1:17,
+         fill = "lightgray", color = "black") +
+         theme_minimal() +
+         theme(axis.text.x = element_text(angle=90))
+contrib
 
-barplot(l$t)
-title("Contribution of the variables to the first three PC")
-
-l$sign <- l$t < 0.05 # I assume that if the contribution in the sum of the three mean principal components is not higher than 0.05 the variable is not important for data variation.
-
-head(l)
-
-nsign <- which(l$sign == T)
+contrib.data <- contrib$data[with(contrib$data, order(contrib)), ]
+nsign <- contrib.data[1:13,]
+nsign <- c(nsign$name)
 ```
 
-We can see that variables **`r nsign`** aren't important for explaining much of the variance of this dataset.
-
+We can see that there are 13 variables (`r nsign`) with a non significant contribution to the principal components that explain the 95% of the variance of our dataset. This are the variables that following the PCA analysis can be removed.
 As it's seen there are a lot of variables whom one could consider removing from the original data however we deciside to keep them and use this analysis to compare with the variables that are demed unimportend when we do the prunned tree and the random forest analysisi.
 
 #2 Splitting data
@@ -244,7 +245,6 @@ yhat_1=predict(prune.data,newdata=testing, type = "class")
 res <- table(yhat_1,testing$y)
 res
 accrcy <- sum(diag(res)/sum(res))
-
 ```
 <<<<<<< HEAD
 The accuracy that we obtain in this model is `r accrcy`.
@@ -361,14 +361,11 @@ Variables originally deamed less important by PCA analytics:
 nsign
 ```
 
-As one can see there is some inconsistency here. For example variable $x39$ and $x40$ where deamed not so important by the PCA analysis but are the second and third most important in the random forrest. 
+As one can see there are three variables $x36$, $x20$ and $x53$ which are not important in the PCA analysis but when we do the random forest they are important. 
 
 #5 Comparation of models:
 
 The pruend tree had an accuratcy of `r accrcy` while the random forrest has an accuratcy of `r accrcy_rf`. The random forrest preforms significally better. 
-
-###Both models are using the same variables?? Maybe we should include that in the prunned tree and compare both with that too? I can do that tomorrow if you want.
-
 
 Just compare the models
 
