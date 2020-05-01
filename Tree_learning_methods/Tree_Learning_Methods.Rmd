@@ -11,7 +11,7 @@ params:
   show_code: yes
 output:
   word_document: default
-  html_document: default
+  pdf_document: default
 ---
 
 ```{r setup, include=FALSE}
@@ -22,6 +22,7 @@ knitr::opts_chunk$set(echo = TRUE)
 library(dplyr)
 library(caret)
 library(tree)
+library(ggplot2)
 ```
 
 #1 Exploratory data analysis
@@ -129,7 +130,7 @@ subset6 %>%
 
 Looking at this violin plots it can be seen that a lot of the components have quite small variance. However we can see some high outliers which could be problematic. This is noted when moving on to firther analysis.
 
-A correlation table is done in order to check if there is linear relation between the variables.
+A correlation table is done in order to check if there is a linear relation between the variables.
 
 ```{r}
 X <- data[,-73]
@@ -149,7 +150,7 @@ clusterVar<-hclust(Dvar,method= "average")
 plot(clusterVar,labels=colnames(X),cex=0.65)
 ```
 
-In this dendrogram it can be seen that there are a lot of clusters meaning a lot of the variables are close to each other with respect to the correlation mean distance. So it's saying, as we commented before that there is a lot of variables that are close correlated.
+In this dendrogram it can be seen that there are a lot of clusters meaning a lot of the variables are close to each other with respect to the correlation mean distance. So it's saying, as we commented before that there is a lot of variables that are closly correlated.
 
 As we have a lot of vairables PCA analysis is preformed in order to check the which variables explain much of the variablility of the data.
 
@@ -180,7 +181,7 @@ barplot(l[,5], names.arg = rownames(l), horiz = T)
 title("5th Principal Component")
 ```
 
-In this plots it can be seen that there is a lot of variables that contriute in each of the principal components. To know which are the most important variables and if there is any variable that can be removed from the dataset I am going to do a contribution plot in order to check if there is any variable that is not  significantly contributing to any of the 17PC which explain the 95% of the variance.
+In this plots it can be seen that there is a lot of variables that contribute in each of the principal components. To know which are the most important variables and if there is any variable that can be removed from the dataset I am going to do a contribution plot in order to check if there is any variable that is not  significantly contributing to any of the 17PC which explain the 95% of the variance.
 
 ```{r}
 library(factoextra)
@@ -251,7 +252,7 @@ The accuracy that we obtain in this model is `r accrcy`.
 
 # Random forrest:
 
-In the random forrest model one needs to decide how many variables $mtry$ are assesed in each node and how many trees $ntree$ are used in the forrest. Caret only has tuning for the number of parameters assessed in each node and this tuningprocess is quite slow the decition is made to take a gready approch towards tuning these parameters. First we use tuning by caret to tune the number of variables. Then the optimum is chosen and used when tuning the number of trees. The order is decided this way since the number of parameters assesed in each node had a bigger inpack on the result than the number of trees. 
+In the random forrest model one needs to decide how many variables $mtry$ are assesed in each node and how many trees $ntree$ are used in the forrest. Caret only has tuning for the number of parameters assessed in each node and this tuningprocess is quite slow. Therefor the decition is made to take a gready approch towards tuning these parameters. First we use tuning by caret to tune the number of variables. Then the optimum is chosen and used when tuning the number of trees. The order is decided this way since the number of parameters assesed in each node is said to hava a bigger inpack on the result than the number of trees. 
 
 A tunegrid is created with 15 values from 1:15 for $mtry$ to tun the model. Our train function will change number of entry variable at each split according to the tunegrid. The default numebr of trees is $500$. 
 
@@ -305,7 +306,7 @@ for (i in seq(1,1000, by = 50)){
 }
 ```
 
-As one can see with the exeption of $ntree= 50 $ there is very little difference in the performance of each itteration. THis supports the assumption that $mtry$ has a greater inpack on the result. 
+As one can see with the exeption of $ntree= 50 $ there is very little difference in the performance of each itteration. This supports the assumption that $mtry$ has a greater inpack on the result. 
 
 ```{r}
 x = seq(1,1000, by = 50)
@@ -318,7 +319,6 @@ ntree.opt
 ```{r}
 ntree <- which.max(accuratcy.list)
 
-#Its giving an error when i try to run it but I don't know if its something of my computer...
 ggplot(data = tibble(x = seq(1, 1000, by = 50), accuratcy.list), aes(x, accuratcy.list)) + geom_point() + geom_vline(xintercept =ntree, colour = "blue") +  geom_hline(yintercept = y[which.max(accuratcy.list)], colour = "blue")
 
 ```
@@ -367,20 +367,17 @@ As one can see there are three variables $x36$, $x20$ and $x53$ which are not im
 
 The pruend tree had an accuratcy of `r accrcy` while the random forrest has an accuratcy of `r accrcy_rf`. The random forrest preforms significally better. 
 
-Just compare the models
-
 
 #6 Gradiant Boosting
 
-
-#Using gbm function as teacher : Generalized Boosted Regression Modeling
-To run gradient boosting algorithm we use GLM funcion.
+We are using gbm function: Generalized Boosted Regression Modeling
+To run gradient boosting algorithm we use a GLM funcion.
 
 Concerning the use of the function :
   
   - n.trees is equivalent to the number of iterations and the number of basis functions in the additive expansion.
 
-  - we use stumps to study iteration influence. In this case, we then choose interaction.depth equal to 1.
+  - we use stumps to study iteration influence. This is obtained by choosing interaction.depth equal to 1.
 
 Moreover, it is important to replace binary variables (due to the fact that we are working on a classification) {-1,1} by {0,1} from our training data set at the begining to use this function and to fit the model.
 
@@ -415,9 +412,9 @@ accrcy_gbm_train_2000 <- sum(diag(res)/sum(res))
 accrcy_gbm_train_2000
 ```
 
-As we can see, the accuracy rate is really higher on training data (around 85%) set than on testing data set (around 75%), which is expected due to the fact that the model is fitted on training data set.
+As we can see, the accuracy rate is really higher on training data (`r accrcy_gbm_test_2000`) set than on testing data set (`r accrcy_gbm_train_2000`), which is expected due to the fact that the model is fitted on the training data set.
 
-We should retain the missclassification rate of testing data set. We can notice that the model for 2000 iterations with stumps as trees is more efficient than pruned single tree model but less efficient that with a forest trees model.
+We should retain the missclassification rate of testing data set. We can notice that the model for 2000 iterations with stumps as trees is more efficient than a pruned single tree model but less efficient that with a forest trees model.
 
 Then we can put forward the influence of the number of iterations (ie. the number of trees) on the missclassification on the testing data set:
   
@@ -467,8 +464,8 @@ x <- data.frame(treeDepth,1-accrcyRates)
 ggplot(x, aes(x=treeDepth, y=1-accrcyRates)) + geom_point()+ggtitle("Influence of trees depth on missclassification")
 ```
 
-On this plot, as expected again, we can see that missclassification in function of trees depth is more or less a decreasing function.
+On this plot we can clearly see that missclassification in function of trees depth is decreasing with the deapth of the trees.
 
-In the best condition (which means with trees depth equal to 16) we can reach 81% of accuracy rate. Then, we can put foward that this algorithm is the most efficient (for memory, random forest model reacht 79% of accuracy rate).
+In the best condition (which means with trees depth equal to `r treeDepth[which.max(accrcyRates)]`) we can reach `r accrcyRates[which.max(accrcyRates)]` of accuracy rate. This means that this algorithm is the most efficient among those explored in this report. 
   
-To conclude we can say that trees depth & iteration number are two factor which can be used to optimize our classification. Nevertheless, it important to be careful because it is two factors very greedy in ressource.
+To conclude we can say that trees depth & iteration number are two factor which can be used to optimize our classification. Nevertheless, it important to be careful because both two factors are very greedy in ressource.
