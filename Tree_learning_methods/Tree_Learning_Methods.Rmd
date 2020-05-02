@@ -10,7 +10,6 @@ params:
   seed: 1234
   show_code: yes
 output:
-  word_document: default
   pdf_document: default
 ---
 
@@ -230,10 +229,10 @@ names(cv.data)
 cv.data
 ```
 
-One can see there is a local minimum at $size = 2$. Since it does not have that much sence to choose the actual mimimum sinse this would not prune the tree at all. 
+One can see there is an increase in deveiance as the number of nodes get smaller. Since it does not have that much sence to choose the actual mimimum sinse this would not prune the tree at all we chose $n= 4$.  
 
 ```{r}
-prune.data=prune.tree(tree.data,best=2) #this is a local minumim 
+prune.data=prune.tree(tree.data,best=4) 
 summary(prune.data)
 plot(prune.data)
 text(prune.data,pretty=0)
@@ -291,13 +290,13 @@ control <- trainControl(method='repeatedcv',
                         number=10, 
                         repeats=3)
 
-for (i in seq(1,1000, by = 50)){
+for (i in 1:20){
   model <- train(y ~ ., 
                 data = training,
                 method = 'rf',
                 metric = 'Accuracy',
                 tuneGrid = data.frame(mtry = mtry.opt),
-                ntree = i,
+                ntree = i*50,
                 trControl=control)
   yhat <- predict(model, newdata = testing, type = "raw")
   res <- table(yhat,testing$y)
@@ -309,19 +308,23 @@ for (i in seq(1,1000, by = 50)){
 As one can see with the exeption of $ntree= 50 $ there is very little difference in the performance of each itteration. This supports the assumption that $mtry$ has a greater inpack on the result. 
 
 ```{r}
-x = seq(1,1000, by = 50)
+x = seq(1,20)
 
 ntree.opt = which.max(accuratcy.list)
 ntree.opt
-```
 
+length(x)
+length(accuratcy.list)
+```
 
 ```{r}
-ntree <- which.max(accuratcy.list)
+ntree <- which.max(accuratcy.list)*50
 
-ggplot(data = tibble(x = seq(1, 1000, by = 50), accuratcy.list), aes(x, accuratcy.list)) + geom_point() + geom_vline(xintercept =ntree, colour = "blue") +  geom_hline(yintercept = y[which.max(accuratcy.list)], colour = "blue")
+ggplot(data = tibble(x = seq(1, 20)*50, accuratcy.list), aes(x, accuratcy.list)) + geom_point() + geom_vline(xintercept =ntree, colour = "blue") +  geom_hline(yintercept = accuratcy.list[which.max(accuratcy.list)], colour = "blue") + ggtitle(label = "Accuratcy as a function of numer of trees" )
 
 ```
+
+There is not a very big difference in accuratcy for any number above 50. 
 ```{r}
 control <- trainControl(method='repeatedcv', 
                         number=10, 
@@ -464,7 +467,7 @@ x <- data.frame(treeDepth,1-accrcyRates)
 ggplot(x, aes(x=treeDepth, y=1-accrcyRates)) + geom_point()+ggtitle("Influence of trees depth on missclassification")
 ```
 
-On this plot we can clearly see that missclassification in function of trees depth is decreasing with the deapth of the trees.
+On this plot the decrease is also more or less decreadig with a minimum at $16$.
 
 In the best condition (which means with trees depth equal to `r treeDepth[which.max(accrcyRates)]`) we can reach `r accrcyRates[which.max(accrcyRates)]` of accuracy rate. This means that this algorithm is the most efficient among those explored in this report. 
   
