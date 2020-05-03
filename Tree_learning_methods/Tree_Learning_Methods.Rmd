@@ -9,10 +9,10 @@ params:
   partition: 0.5
   seed: 1234
   show_code: yes
-output:
   pdf_document: default
 ---
 
+output:
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
@@ -246,7 +246,6 @@ res <- table(yhat_1,testing$y)
 res
 accrcy <- sum(diag(res)/sum(res))
 ```
-<<<<<<< HEAD
 The accuracy that we obtain in this model is `r accrcy`.
 
 # Random forrest:
@@ -276,6 +275,10 @@ rf_gridsearch <- train(y ~ .,
                        tuneGrid = tunegrid, 
                        trControl=control)
 print(rf_gridsearch) 
+```
+
+```{r}
+ggplot(data = tibble(mtry= rf_gridsearch$results$mtry, accuratcy = rf_gridsearch$results$Accuracy), aes(x= mtry, y= accuratcy)) + geom_point() + geom_hline(yintercept  = rf_gridsearch$results$Accuracy[which.max(rf_gridsearch$results$Accuracy)], col = "blue") + geom_vline(xintercept  = which.max(rf_gridsearch$results$Accuracy), col = "blue")
 ```
 
 Eventually the optimum value for $mtry$ si chosen automatically by the algoritm. 
@@ -324,7 +327,7 @@ ggplot(data = tibble(x = seq(1, 20)*50, accuratcy.list), aes(x, accuratcy.list))
 
 ```
 
-There is not a very big difference in accuratcy for any number above 50. 
+There is not a very big difference in accuratcy related to the choise of n.
 ```{r}
 control <- trainControl(method='repeatedcv', 
                         number=10, 
