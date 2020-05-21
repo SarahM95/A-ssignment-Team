@@ -1,0 +1,663 @@
+---
+title: "Assignment_2"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(keras)
+library(tensorflow)
+```
+
+
+```{r}
+pathValidation <- "data/valid"
+pathTrain <- "data/train"
+pathTest <- "data/test"
+```
+
+```{r, message =FALSE, warnings=FALSE}
+#Two class : normal & effusion
+num_classes <- 2
+
+#Input image dimensions
+img_rows <- 64
+img_cols <- 64
+
+#Directory : one subdirectory per class. Every set is balanced with effusion / normal class.
+#Target_size : integer vector, default: c(256, 256). The dimensions to which all images found will be resized.
+#Class_mode is binary : normal or effusion.
+#Color_mode is set as "grayscale" : in this case, we have directly a single chanel.
+
+#Setting up train data set
+train_datagen_1 <- image_data_generator(rescale = 1/255)
+train_generator_1 <- flow_images_from_directory(
+  directory= pathTrain,
+  train_datagen_1,
+  color_mode = "grayscale",
+  target_size = c(img_rows,img_cols), # every image will be rezised to this size.
+  batch_size = 25, 
+  class_mode = 'binary'
+)
+
+#might have to add shuffel
+
+#Setting up validation data set
+valid_datagen_1 <- image_data_generator(rescale = 1/255)
+validation_generator_1 <- flow_images_from_directory(
+  directory= pathValidation,
+  valid_datagen_1,
+  color_mode = "grayscale",
+  target_size = c(img_rows,img_cols),
+  batch_size = 25,
+  class_mode = 'binary'
+)
+
+```
+
+```{r, message =FALSE, warnings=FALSE}
+#Access to the image/class & verification
+batch <- generator_next(train_generator_1)
+#There are for valset 25 images, in 64x64 & 1 chanel for color.
+str(batch)
+sum(batch[[2]])
+```
+
+```{r, message =FALSE, warnings=FALSE} 
+model_1 <- keras_model_sequential() %>%
+
+#First conv kernel has to contain input_shape which represent the dimension of image in input
+layer_conv_2d(filters = 8, kernel_size = c(3, 3), strides = 1, padding = "valid", activation = "relu",input_shape = c(64, 64, 1)) %>%
+#Pooling layers to reduce parameter : Downsamples the input representation by taking the maximum value over the window (2,2) 
+layer_max_pooling_2d(pool_size = c(2, 2)) %>%
+
+layer_conv_2d(filters = 16, kernel_size = c(3, 3), strides = 1, padding = "valid", activation = "relu") %>%
+layer_max_pooling_2d(pool_size = c(2, 2)) %>%
+
+layer_conv_2d(filters = 32, kernel_size = c(3, 3), strides = 1, padding = "valid", activation = "relu") %>%
+layer_max_pooling_2d(pool_size = c(2, 2)) %>%
+
+layer_flatten() %>% #prepares a vector for the fully connected layers
+layer_dense(units = 128, activation = "relu") %>% #Return max(x,0) for layer 128
+layer_dense(units = 32, activation = "relu") %>% #Return max(x,0) for layer 32
+layer_dense(units = 1, activation = "sigmoid") # sigmoid(x) = 1 / (1 + exp(-x)) for last layer. Close from 0 for small value, close from 1 for high value (>5).
+
+#maybee add a dropout layer?? 
+model_1 %>% compile(
+  loss = "binary_crossentropy", #Loss function used for a binary problem
+  optimizer = "adam", #This optimizer is usually a good choice for recurrent neural networks. # professor uses this optimizer_rmsprop(lr = 1e-4)
+  metrics = c("acc") #Calculates how often predictions equals labels.
+)
+
+summary(model_1)
+
+```
+
+
+```{r, message =FALSE, warnings=FALSE, eval = FALSE} 
+history_1 <- model_1 %>% fit_generator(
+  train_generator_1,
+  steps_per_epoch = train_generator_1$n/train_generator_1$batch_size, #equal to 500//25
+  epochs = 20,
+  validation_data = validation_generator_1,
+  validation_steps = validation_generator_1$n/validation_generator_1$batch_size,
+  verbose = 1
+)
+
+plot(history_1)
+```
+
+```{r}
+model_1 %>% save_model_hdf5("model_1x_batch_sixe_25.h5")
+```
+
+# TUNE THE BATCH SIZE: 
+this makes everything go crazy for me. 
+
+# Batch size = 35
+
+```{r}
+#Setting up train data set
+train_datagen_2 <- image_data_generator(rescale = 1/255)
+train_generator_2 <- flow_images_from_directory(
+  directory= pathTrain,
+  train_datagen_2,
+  color_mode = "grayscale",
+  target_size = c(img_rows,img_cols), # every image will be rezised to this size.
+  batch_size = 35, 
+  class_mode = 'binary'
+)
+
+#might have to add shuffel
+
+#Setting up validation data set
+valid_datagen_2 <- image_data_generator(rescale = 1/255)
+validation_generator_2 <- flow_images_from_directory(
+  directory= pathValidation,
+  valid_datagen_2,
+  color_mode = "grayscale",
+  target_size = c(img_rows,img_cols),
+  batch_size = 35,
+  class_mode = 'binary'
+)
+
+```
+
+```{r, message =FALSE, warnings=FALSE}
+#Access to the image/class & verification
+batch_2 <- generator_next(train_generator_2)
+#There are for valset 25 images, in 64x64 & 1 chanel for color.
+str(batch_2)
+sum(batch_2[[2]])
+```
+
+```{r, message =FALSE, warnings=FALSE} 
+model_2 <- keras_model_sequential() %>%
+
+#First conv kernel has to contain input_shape which represent the dimension of image in input
+layer_conv_2d(filters = 8, kernel_size = c(3, 3), strides = 1, padding = "valid", activation = "relu",input_shape = c(64, 64, 1)) %>%
+#Pooling layers to reduce parameter : Downsamples the input representation by taking the maximum value over the window (2,2) 
+layer_max_pooling_2d(pool_size = c(2, 2)) %>%
+
+layer_conv_2d(filters = 16, kernel_size = c(3, 3), strides = 1, padding = "valid", activation = "relu") %>%
+layer_max_pooling_2d(pool_size = c(2, 2)) %>%
+
+layer_conv_2d(filters = 32, kernel_size = c(3, 3), strides = 1, padding = "valid", activation = "relu") %>%
+layer_max_pooling_2d(pool_size = c(2, 2)) %>%
+
+layer_flatten() %>% #prepares a vector for the fully connected layers
+layer_dense(units = 128, activation = "relu") %>% #Return max(x,0) for layer 128
+layer_dense(units = 32, activation = "relu") %>% #Return max(x,0) for layer 32
+layer_dense(units = 1, activation = "sigmoid") # sigmoid(x) = 1 / (1 + exp(-x)) for last layer. Close from 0 for small value, close from 1 for high value (>5).
+
+#maybee add a dropout layer?? 
+model_2 %>% compile(
+  loss = "binary_crossentropy", #Loss function used for a binary problem
+  optimizer = "adam", #This optimizer is usually a good choice for recurrent neural networks. # professor uses this optimizer_rmsprop(lr = 1e-4)
+  metrics = c("acc") #Calculates how often predictions equals labels.
+)
+
+summary(model_2)
+
+```
+
+```{r, message =FALSE, warnings=FALSE, eval = FALSE} 
+history_2 <- model_2 %>% fit_generator(
+  train_generator_2,
+  steps_per_epoch = train_generator_2$n/train_generator_2$batch_size, #equal to 500//25
+  epochs = 20,
+  validation_data = validation_generator_2,
+  validation_steps = validation_generator_2$n/validation_generator_2$batch_size,
+  verbose = 1
+)
+
+plot(history_2)
+```
+
+```{r}
+model_2 %>% save_model_hdf5("model_2x_batch_sixe_35.h5")
+```
+
+# Batch size = 50
+
+
+```{r}
+#Setting up train data set
+train_datagen_3 <- image_data_generator(rescale = 1/255)
+train_generator_3 <- flow_images_from_directory(
+  directory= pathTrain,
+  train_datagen_3,
+  color_mode = "grayscale",
+  target_size = c(img_rows,img_cols), # every image will be rezised to this size.
+  batch_size = 50, 
+  class_mode = 'binary'
+)
+
+#might have to add shuffel
+
+#Setting up validation data set
+valid_datagen_3 <- image_data_generator(rescale = 1/255)
+validation_generator_3 <- flow_images_from_directory(
+  directory= pathValidation,
+  valid_datagen_3,
+  color_mode = "grayscale",
+  target_size = c(img_rows,img_cols),
+  batch_size = 50,
+  class_mode = 'binary'
+)
+
+```
+
+```{r, message =FALSE, warnings=FALSE}
+#Access to the image/class & verification
+batch_3 <- generator_next(train_generator_3)
+#There are for valset 25 images, in 64x64 & 1 chanel for color.
+str(batch_3)
+sum(batch_3[[2]])
+```
+
+```{r, message =FALSE, warnings=FALSE} 
+model_3 <- keras_model_sequential() %>%
+
+#First conv kernel has to contain input_shape which represent the dimension of image in input
+layer_conv_2d(filters = 8, kernel_size = c(3, 3), strides = 1, padding = "valid", activation = "relu",input_shape = c(64, 64, 1)) %>%
+#Pooling layers to reduce parameter : Downsamples the input representation by taking the maximum value over the window (2,2) 
+layer_max_pooling_2d(pool_size = c(2, 2)) %>%
+
+layer_conv_2d(filters = 16, kernel_size = c(3, 3), strides = 1, padding = "valid", activation = "relu") %>%
+layer_max_pooling_2d(pool_size = c(2, 2)) %>%
+
+layer_conv_2d(filters = 32, kernel_size = c(3, 3), strides = 1, padding = "valid", activation = "relu") %>%
+layer_max_pooling_2d(pool_size = c(2, 2)) %>%
+
+layer_flatten() %>% #prepares a vector for the fully connected layers
+layer_dense(units = 128, activation = "relu") %>% #Return max(x,0) for layer 128
+layer_dense(units = 32, activation = "relu") %>% #Return max(x,0) for layer 32
+layer_dense(units = 1, activation = "sigmoid") # sigmoid(x) = 1 / (1 + exp(-x)) for last layer. Close from 0 for small value, close from 1 for high value (>5).
+
+#maybee add a dropout layer?? 
+model_3 %>% compile(
+  loss = "binary_crossentropy", #Loss function used for a binary problem
+  optimizer = "adam", #This optimizer is usually a good choice for recurrent neural networks. # professor uses this optimizer_rmsprop(lr = 1e-4)
+  metrics = c("acc") #Calculates how often predictions equals labels.
+)
+
+summary(model_3)
+
+```
+
+```{r, message =FALSE, warnings=FALSE, eval = FALSE} 
+history_3 <- model_3 %>% fit_generator(
+  train_generator_3,
+  steps_per_epoch = train_generator_3$n/train_generator_3$batch_size, #equal to 500//25
+  epochs = 20,
+  validation_data = validation_generator_3,
+  validation_steps = validation_generator_3$n/validation_generator_3$batch_size,
+  verbose = 1
+)
+
+plot(history_3)
+```
+
+```{r}
+model_3 %>% save_model_hdf5("model_3x_batch_sixe_50.h5")
+```
+
+final val_acc 
+Model 1: 0.8
+Model 2: 0.8143
+Model 3: 0.8
+
+Model 2 has the best final accuratcy? 
+
+max val_acc:
+Model 1: 0.84
+Model 2: 0.8286
+Model 3: 0.83
+
+model 1 has the best max_acc
+
+
+# Evaluatin:
+```{r}
+batch_size = 25
+test_datagen_1 <- image_data_generator(rescale = 1/255)
+test_generator_1 <- flow_images_from_directory(
+  directory= pathTest,
+  test_datagen_1,
+  color_mode = "grayscale",
+  target_size = c(img_rows,img_cols),
+  batch_size = batch_size,
+  class_mode = 'binary'
+)
+```
+```{r}
+model_1 <- load_model_hdf5("model_1x_batch_sixe_25.h5")
+num_test_images = test_generator_1$n/test_generator_1$batch_size
+eval_1<- model_1 %>% evaluate_generator(test_generator_1, steps=num_test_images)
+```
+
+```{r}
+eval_1
+```
+
+
+# Predictions:
+```{r}
+model_1 <- load_model_hdf5("model_1x_batch_sixe_25.h5")
+```
+
+```{r}
+batch_size = 25
+test_datagen_1 <- image_data_generator(rescale = 1/255)
+test_generator_1 <- flow_images_from_directory(
+  directory= pathTest,
+  test_datagen_1,
+  color_mode = "grayscale",
+  target_size = c(img_rows,img_cols),
+  batch_size = batch_size,
+  class_mode = 'binary'
+)
+```
+
+
+```{r}
+set.seed(12)
+model_1 <- load_model_hdf5("model_1x_batch_sixe_25.h5")
+steps <- test_generator_1$n/test_generator_1$batch_size
+predict_1 <- model_1 %>% predict_generator(test_generator_1, steps=steps)
+```
+
+```{r}
+predictions_1 <- ifelse(predict_1 > 0.5, 1,0)
+```
+
+```{r}
+library(caret)
+```
+
+##Confussion matrix
+```{r}
+x_true<- c(rep(0,50), rep(1,50))
+xtab_1 <- table(predictions_1, test_generator_1$labels)
+# load Caret package for computing Confusion matrix
+confusionMatrix(xtab_1)
+```
+the predictions are very bad.. 
+
+```{r}
+model_1 <- load_model_hdf5("model_1x_batch_sixe_25.h5")
+predict_1.2 <- model_1 %>% predict_generator(train_generator_1, steps=train_generator_1$n/train_generator_1$batch_size)
+predictions_1.2 <- ifelse(predict_1.2 > 0.5, 1,0)
+xtab_1.2 <- table(predictions_1.2, train_generator_1$labels)
+# load Caret package for computing Confusion matrix
+confusionMatrix(xtab_1.2)
+```
+The predictions are also horrible on the train dataset, this is very bad. 
+
+
+# Refitt including data augmentation:
+
+```{r}
+datagen_1 <- image_data_generator(
+  rescale = 1/255,
+  rotation_range = 40,
+  width_shift_range = 0.2,
+  height_shift_range = 0.2,
+  shear_range = 0.2,
+  zoom_range = 0.2,
+  horizontal_flip = TRUE
+)
+```
+
+```{r}
+train_generator_4 <- flow_images_from_directory(
+  pathTrain,
+  datagen_1,
+  target_size = c(img_rows,img_cols),
+  color_mode = "grayscale",
+  batch_size = 25,
+  class_mode = "binary"
+)
+```
+
+```{r}
+validation_datagen_1 <- image_data_generator(rescale = 1/255)
+validation_generator_4 <- flow_images_from_directory(
+  pathValidation,
+  validation_datagen_1,
+  color_mode = "grayscale",
+  target_size = c(img_rows,img_cols),
+  batch_size = 25,
+  class_mode = "binary"
+)
+```
+
+
+
+```{r}
+history_4 <- model_1 %>% fit_generator(
+  train_generator_4,
+  steps_per_epoch = train_generator_4$n/train_generator_4$batch_size,
+  epochs = 20,
+  validation_data = validation_generator_4,
+  validation_steps = validation_generator_4$n/validation_generator_4$batch_size
+)
+plot(history_4)
+```
+
+
+```{r}
+model_1 %>% save_model_hdf5("model_augmentation_x_batch_sixe_25.h5")
+```
+
+
+## Predictions:
+```{r}
+model_1 <- load_model_hdf5("model_augmentation_x_batch_sixe_25.h5")
+```
+
+```{r}
+batch_size = 25
+test_datagen_1 <- image_data_generator(rescale = 1/255)
+test_generator_4 <- flow_images_from_directory(
+  directory= pathTest,
+  test_datagen_1,
+  color_mode = "grayscale",
+  target_size = c(img_rows,img_cols),
+  batch_size = batch_size,
+  class_mode = 'binary'
+)
+```
+
+```{r}
+num_test_images = test_generator_1$n/test_generator_1$batch_size
+eval_2<- model_1 %>% evaluate_generator(test_generator_1, steps=num_test_images)
+```
+
+```{r}
+eval_2
+```
+```{r}
+model <- load_model_hdf5("model_augmentation_x_batch_sixe_25.h5")
+steps <- test_generator$n/test_generator$batch_size
+predict_2 <- model %>% predict_generator(test_generator, steps=steps)
+```
+
+```{r}
+predictions_2 <- ifelse(predict > 0.5, 1,0)
+
+```
+
+
+##Confussion matrix
+```{r}
+xtab <- table(predictions_2, test_generator$labels)
+# load Caret package for computing Confusion matrix
+confusionMatrix(xtab)
+```
+
+
+# CAE
+
+
+model <- keras_model_sequential() %>%
+
+#First conv kernel has to contain input_shape which represent the dimension of image in input
+layer_conv_2d(filters = 8, kernel_size = c(3, 3), strides = 1, padding = "valid", activation = "relu",input_shape = c(64, 64, 1)) %>%
+#Pooling layers to reduce parameter : Downsamples the input representation by taking the maximum value over the window (2,2) 
+layer_max_pooling_2d(pool_size = c(2, 2)) %>%
+
+layer_conv_2d(filters = 16, kernel_size = c(3, 3), strides = 1, padding = "valid", activation = "relu") %>%
+layer_max_pooling_2d(pool_size = c(2, 2)) %>%
+
+layer_conv_2d(filters = 32, kernel_size = c(3, 3), strides = 1, padding = "valid", activation = "relu") %>%
+layer_max_pooling_2d(pool_size = c(2, 2)) %>%
+
+layer_flatten() %>% #prepares a vector for the fully connected layers
+layer_dense(units = 128, activation = "relu") %>% #Return max(x,0) for layer 128
+layer_dense(units = 32, activation = "relu") %>% #Return max(x,0) for layer 32
+layer_dense(units = 1, activation = "sigmoid") # sigmoid(x) = 1 / (1 + exp(-x)) for last layer. Close from 0 for small value, close from 1 for high value (>5).
+
+```{r}
+
+#Setting up train data set
+train_datagen_5 <- image_data_generator(rescale = 1/255)
+train_generator_5 <- flow_images_from_directory(
+  directory= pathTrain,
+  train_datagen_5,
+  color_mode = "grayscale",
+  target_size = c(img_rows,img_cols), # every image will be rezised to this size.
+  batch_size = 25, 
+  class_mode = "input"
+)
+
+#might have to add shuffel
+
+#Setting up validation data set
+valid_datagen_5 <- image_data_generator(rescale = 1/255)
+validation_generator_5 <- flow_images_from_directory(
+  directory= pathValidation,
+  valid_datagen_5,
+  color_mode = "grayscale",
+  target_size = c(img_rows,img_cols),
+  batch_size = 25,
+  class_mode = "input"
+)
+
+```
+
+```{r, message =FALSE, warnings=FALSE}
+#Access to the image/class & verification
+batch_5 <- generator_next(train_generator_5)
+batch_5.2 <- generator_next(validation_generator_5)
+#There are for valset 25 images, in 64x64 & 1 chanel for color.
+str(batch_5)
+str(batch_5.2)
+sum(batch_5[[2]])
+```
+
+```{r}
+#### Convolutional Encoder 
+input_dim <- c(64,64,1)
+model_enc <- keras_model_sequential() 
+model_enc %>%
+  layer_conv_2d(filters = 16, kernel_size = c(3,3), #la capa del convolucion, 3*3 kernel
+                activation = "relu", padding = "same",
+                input_shape = input_dim)  %>%
+  layer_max_pooling_2d(pool_size = c(2,2), padding = "same")  %>% #padding makes sure the shape of output is the same as the input. Tamaño que entrada es igual a el tamaño salido
+  layer_conv_2d(filters = 8, kernel_size = c(3,3), 
+                activation = "relu", padding = "same") %>%
+  layer_max_pooling_2d(pool_size = c(2,2), padding = "same")  %>%
+  layer_conv_2d(filters = 8, kernel_size = c(3,3), 
+                activation = "relu", padding = "same") %>%
+  layer_max_pooling_2d(pool_size = c(2,2), padding = "same") 
+summary(model_enc)
+
+#### Convolutional Decoder 
+
+model_dec <- keras_model_sequential() 
+model_dec %>%
+  layer_conv_2d(filters = 8, kernel_size = c(3,3), 
+                activation = "relu", padding = "same",
+                input_shape = c(8, 8, 8))  %>%
+  layer_upsampling_2d(size = c(2,2))  %>%         #este es nuevo, dobla el tamaño 
+  layer_conv_2d(filters = 8, kernel_size = c(3,3), 
+                activation = "relu", padding = "same")  %>%
+  layer_upsampling_2d(size = c(2,2))  %>%
+  # Important: no padding 
+  layer_conv_2d(filters = 1, kernel_size = c(3,3), #filtros son acosiosada de dimencion nosotros oslo tenemos gries
+                activation = "relu", padding = "same")  %>%
+  layer_upsampling_2d(size = c(2,2))  
+  #layer_conv_2d(filters = 1, kernel_size=c(3,3), activation="sigmoid", padding="same")
+  
+summary(model_dec)
+
+# inputdimension  == output dimension 
+
+#### Autoencoder 
+
+model_5<-keras_model_sequential()
+model_5 %>%model_enc%>%model_dec
+summary(model_5)
+```
+```{r}
+model_5 %>% compile(
+  loss = "mean_squared_error",
+  #optimizer = optimizer_rmsprop(),
+  optimizer = "adam",
+  metrics = c("mean_squared_error")
+)
+```
+
+
+
+```{r}
+history_5 <- model_5 %>% fit_generator(
+  train_generator_5,
+  steps_per_epoch = train_generator_5$n/train_generator_5$batch_size,
+  epochs = 20,
+  validation_data = validation_generator_5,
+  validation_steps = validation_generator_5$n/validation_generator_5$batch_size
+)
+plot(history_5)
+```
+
+
+
+#### Convolutional Encoder 
+```{r}
+
+
+input_dim <- c(64,64,1)
+model_enc <- keras_model_sequential() 
+model_enc %>%
+  layer_dense(units = 128, activation = "relu", input_shape =  input_dim) %>%
+  layer_dense(units = 64, activation = "relu") %>%
+  layer_dense(units = 32, activation = "relu") 
+summary(model_enc)
+
+#### Decoder 
+
+model_dec <- keras_model_sequential() 
+model_dec %>%
+  layer_dense(units = 64, activation = "relu", input_shape = c( 64, 64, 32) ) %>%
+  layer_dense(units = 128, activation = "relu") %>%
+  layer_dense(units = ncol(x_train), activation = "relu") 
+summary(model_dec)
+
+# inputdimension  == output dimension 
+
+#### Autoencoder 
+
+model<-keras_model_sequential()
+model %>%model_enc%>%model_dec
+
+##########################################################
+
+summary(model)
+```
+```{r}
+model %>% compile(
+  loss = "mean_squared_error",
+  #optimizer = optimizer_rmsprop(),
+  optimizer = "adam",
+  metrics = c("mean_squared_error")
+)
+```
+
+
+
+```{r}
+history <- model %>% fit_generator(
+  train_generator,
+  steps_per_epoch = train_generator$n/train_generator$batch_size,
+  epochs = 20,
+  validation_data = validation_generator,
+  validation_steps = validation_generator$n/validation_generator$batch_size
+)
+```
+
