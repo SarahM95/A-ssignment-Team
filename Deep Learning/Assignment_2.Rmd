@@ -558,7 +558,6 @@ model_enc %>%
   layer_conv_2d(filters = 8, kernel_size = c(3,3), 
                 activation = "relu", padding = "same") %>%
   layer_max_pooling_2d(pool_size = c(2,2), padding = "same")
-  Flatten()
 summary(model_enc)
 
 #### Convolutional Decoder 
@@ -639,16 +638,6 @@ test_generator_5 <- flow_images_from_directory(
 # Autoencoder
 output <-predict(model_5,test_generator_5) # it's not working i don't know why
 dim(output)
-
-
-# From input to encoder
-enc_output_cifra<-predict(model_enc,test_generator_4)
-dim(enc_output_cifra)
-
-# From encoder to decoder
-dec_output_cifra<-predict(model_dec,enc_output_cifra)
-dim(dec_output_cifra)
-
 ```
 
 
@@ -661,24 +650,18 @@ model_enc %>%
   layer_dense(units = 128, activation = "relu", input_shape =  input_dim) %>%
   layer_dense(units = 64, activation = "relu") %>%
   layer_dense(units = 32, activation = "relu") %>%
-  layer_dense(units = 1, activation = "softmax")
+  layer_dense(units = 1)
 summary(model_enc)
 
-
-
-input_dim <- c(64,64,1)
-model_enc1 <- keras_model_sequential()
-model_enc1 %>%
-  layer_dense(units = 128, activation = "relu", input_shape =  input_dim)
-summary(model_enc1)
 
 #### Decoder 
 
 model_dec <- keras_model_sequential() 
 model_dec %>%
-  layer_dense(units = 64, activation = "relu", input_shape = c( 64, 64, 32) ) %>%
+  layer_dense(units = 64, activation = "relu", input_shape = c( 64, 64, 1) ) %>%
   layer_dense(units = 128, activation = "relu") %>%
-  layer_dense(units = 32, activation = "relu") 
+  layer_dense(units = 32, activation = "relu") %>%
+  layer_dense(units = 1)
 summary(model_dec)
 
 
@@ -698,7 +681,7 @@ summary(model)
 
 
 ```{r}
-model_enc %>% compile(
+model %>% compile(
   loss = "mean_squared_error",
   #optimizer = optimizer_rmsprop(),
   optimizer = "adam",
@@ -709,7 +692,7 @@ model_enc %>% compile(
 
 
 ```{r}
-history <- model_enc %>% fit_generator(
+history <- model %>% fit_generator(
   train_generator_5,
   steps_per_epoch = train_generator_5$n/train_generator_5$batch_size,
   epochs = 20,
@@ -724,12 +707,15 @@ history <- model_enc %>% fit_generator(
 library(randomForest)
 set.seed(1)
 
-## I am not able to extract the flatten_layer form the model. 
+# From input to encoder
+enc_output<-predict(model,test_generator_5)## I am not able to extract the flatten_layer form the model if we manege to got that then it's just put it in the boosting or randomtree model and then it will all work. 
+dim(enc_output)
+
 
 ## gradient boosting (what its )
 library(xgboost)
-dtrain = xgb.DMatrix( ,label = train_generator_5)
-dtest = xgb.DMatrix( , label = test_generator_5)
+dtrain = xgb.DMatrix(enc_output ,label = train_generator_5)
+dtest = xgb.DMatrix(enc_output , label = test_generator_5)
 watchlist = list(eval=dtest, train=dtrain)
 param = list(max_depth=5, silent=1, nthread=4, objective="binary:logistic", eval_metric="auc")
 
@@ -738,13 +724,16 @@ param = list(max_depth=5, silent=1, nthread=4, objective="binary:logistic", eval
             auc(test_generator_5, predict(bst, newdata=dtest)),
            row.names=c("train", "test"))
 
+ 
 
-
+ 
+ 
+ 
 ## Random forest
 pixels <- model_enc1(train_generator_5)
 pixels <- model_enc(train_generator_5) # It's never ending to run
 
-rf.model = randomForest(pixels~., data = train_generator_5)
+rf.model = randomForest(enc_output~., data = train_generator_5)
 
 yhat.rf = predict(rf.model,newdata=valid_datagen_5)
 mean((yhat.rf-test_generation_5)^2)
