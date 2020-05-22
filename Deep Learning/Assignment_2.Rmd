@@ -643,29 +643,58 @@ dim(output)
 
 #### Convolutional Encoder 
 ```{r}
+# I put this two options because I don't know which one is the correct one. I was trying a lot with the second one (model_enc_1)  which I think is the one but as it doesn't works I checked the CAE-MINST_E and I saw that the professor have it in the model_enc way but it's still not working for me so I don't know.
 
 input_dim <- c(64,64,1)
 model_enc <- keras_model_sequential() 
 model_enc %>%
+  layer_conv_2d(filters = 64, kernel_size = c(3,3), #la capa del convolucion, 3*3 kernel
+                activation = "relu", padding = "same",
+                input_shape = input_dim)  %>%
+  layer_max_pooling_2d(pool_size = c(2,2), padding = "same")  %>% #padding makes sure the shape of output is the same as the input. Tamaño que entrada es igual a el tamaño salido
+  layer_conv_2d(filters = 32, kernel_size = c(3,3), 
+                activation = "relu", padding = "same") %>%
+  layer_max_pooling_2d(pool_size = c(2,2), padding = "same")  %>%
+  layer_conv_2d(filters = 8, kernel_size = c(3,3), 
+                activation = "relu", padding = "same") %>%
+  layer_max_pooling_2d(pool_size = c(2,2), padding = "same")
+summary(model_enc)
+
+input_dim <- c(64,64,1)
+model_enc_1 <- keras_model_sequential()
+model_enc_1 %>%  
   layer_dense(units = 128, activation = "relu", input_shape =  input_dim) %>%
   layer_dense(units = 64, activation = "relu") %>%
   layer_dense(units = 32, activation = "relu") %>%
   layer_dense(units = 1)
-summary(model_enc)
-
+summary(model_enc_1)
 
 #### Decoder 
 
 model_dec <- keras_model_sequential() 
 model_dec %>%
+  layer_conv_2d(filters = 64, kernel_size = c(3,3), 
+                activation = "relu", padding = "same",
+                input_shape = c(8, 8, 8))  %>%
+  layer_upsampling_2d(size = c(2,2))  %>%         #este es nuevo, dobla el tamaño 
+  layer_conv_2d(filters = 32, kernel_size = c(3,3), 
+                activation = "relu", padding = "same")  %>%
+  layer_upsampling_2d(size = c(2,2))  %>%
+  # Important: no padding 
+  layer_conv_2d(filters = 8, kernel_size = c(3,3), #filtros son acosiosada de dimencion nosotros oslo tenemos gries
+                activation = "relu", padding = "same")  %>%
+  layer_upsampling_2d(size = c(2,2))  
+  #layer_conv_2d(filters = 1, kernel_size=c(3,3), activation="sigmoid", padding="same")
+  
+summary(model_dec)
+
+model_dec_1 <- keras_model_sequential()
+model_dec_1 %>%
   layer_dense(units = 64, activation = "relu", input_shape = c( 64, 64, 1) ) %>%
   layer_dense(units = 128, activation = "relu") %>%
   layer_dense(units = 32, activation = "relu") %>%
   layer_dense(units = 1)
-summary(model_dec)
-
-
-ncol(train_generator_5)
+summary(model_dec_1)
 
 # inputdimension  == output dimension 
 
@@ -702,13 +731,12 @@ history <- model %>% fit_generator(
 ```
 
 
-
 ```{r}
 library(randomForest)
 set.seed(1)
 
 # From input to encoder
-enc_output<-predict(model,test_generator_5)## I am not able to extract the flatten_layer form the model if we manege to got that then it's just put it in the boosting or randomtree model and then it will all work. 
+enc_output<-predict(model,validation_generator_5)## I am not able to extract the flatten_layer form the model if we manege to got that then it's just put it in the boosting or randomtree model and then it will all work. 
 dim(enc_output)
 
 
@@ -726,13 +754,7 @@ param = list(max_depth=5, silent=1, nthread=4, objective="binary:logistic", eval
 
  
 
- 
- 
- 
 ## Random forest
-pixels <- model_enc1(train_generator_5)
-pixels <- model_enc(train_generator_5) # It's never ending to run
-
 rf.model = randomForest(enc_output~., data = train_generator_5)
 
 yhat.rf = predict(rf.model,newdata=valid_datagen_5)
