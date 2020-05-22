@@ -454,8 +454,9 @@ test_generator_4 <- flow_images_from_directory(
 ```
 
 ```{r}
-num_test_images = test_generator_1$n/test_generator_1$batch_size
-eval_2<- model_1 %>% evaluate_generator(test_generator_1, steps=num_test_images)
+# here I have changed test_generator_1 for test_generator_4 which I think is the correct on, is it?
+num_test_images = test_generator_4$n/test_generator_4$batch_size
+eval_2<- model_1 %>% evaluate_generator(test_generator_4, steps=num_test_images)
 ```
 
 ```{r}
@@ -463,22 +464,24 @@ eval_2
 ```
 ```{r}
 model <- load_model_hdf5("model_augmentation_x_batch_sixe_25.h5")
-steps <- test_generator$n/test_generator$batch_size
-predict_2 <- model %>% predict_generator(test_generator, steps=steps)
+steps <- test_generator_4$n/test_generator_4$batch_size
+predict_2 <- model %>% predict_generator(test_generator_4, steps=steps)
 ```
 
 ```{r}
-predictions_2 <- ifelse(predict > 0.5, 1,0)
+predictions_2 <- ifelse(predict_2 > 0.5, 1,0)
 
 ```
 
 
 ##Confussion matrix
 ```{r}
-xtab <- table(predictions_2, test_generator$labels)
+xtab <- table(predictions_2, test_generator_4$labels)
 # load Caret package for computing Confusion matrix
 confusionMatrix(xtab)
 ```
+
+# Comparison of both models
 
 
 # CAE
@@ -554,7 +557,8 @@ model_enc %>%
   layer_max_pooling_2d(pool_size = c(2,2), padding = "same")  %>%
   layer_conv_2d(filters = 8, kernel_size = c(3,3), 
                 activation = "relu", padding = "same") %>%
-  layer_max_pooling_2d(pool_size = c(2,2), padding = "same") 
+  layer_max_pooling_2d(pool_size = c(2,2), padding = "same")
+  Flatten()
 summary(model_enc)
 
 #### Convolutional Decoder 
@@ -606,11 +610,50 @@ history_5 <- model_5 %>% fit_generator(
 plot(history_5)
 ```
 
+```{r}
+model_5 %>% save_model_hdf5("model_CAE.h5")
+```
+
+```{r}
+model_5 <- load_model_hdf5("model_CAE.h5")
+```
+
+
+```{r}
+## Prediction of CAE
+### I think could be interesting to do the prediction and evaluation of this model as well due to answer better question 12.
+
+
+#Setting up validation data set
+test_datagen_5 <- image_data_generator(rescale = 1/255)
+test_generator_5 <- flow_images_from_directory(
+  directory= pathTest,
+  test_datagen_5,
+  color_mode = "grayscale",
+  target_size = c(img_rows,img_cols),
+  batch_size = 25,
+  class_mode = "input"
+)
+
+
+# Autoencoder
+output <-predict(model_5,test_generator_5) # it's not working i don't know why
+dim(output)
+
+
+# From input to encoder
+enc_output_cifra<-predict(model_enc,test_generator_4)
+dim(enc_output_cifra)
+
+# From encoder to decoder
+dec_output_cifra<-predict(model_dec,enc_output_cifra)
+dim(dec_output_cifra)
+
+```
 
 
 #### Convolutional Encoder 
 ```{r}
-
 
 input_dim <- c(64,64,1)
 model_enc <- keras_model_sequential() 
@@ -626,8 +669,11 @@ model_dec <- keras_model_sequential()
 model_dec %>%
   layer_dense(units = 64, activation = "relu", input_shape = c( 64, 64, 32) ) %>%
   layer_dense(units = 128, activation = "relu") %>%
-  layer_dense(units = ncol(x_train), activation = "relu") 
+  layer_dense(units = 32, activation = "relu") 
 summary(model_dec)
+
+
+ncol(train_generator_5)
 
 # inputdimension  == output dimension 
 
@@ -640,8 +686,10 @@ model %>%model_enc%>%model_dec
 
 summary(model)
 ```
+
+
 ```{r}
-model %>% compile(
+model_enc %>% compile(
   loss = "mean_squared_error",
   #optimizer = optimizer_rmsprop(),
   optimizer = "adam",
@@ -652,12 +700,77 @@ model %>% compile(
 
 
 ```{r}
-history <- model %>% fit_generator(
-  train_generator,
-  steps_per_epoch = train_generator$n/train_generator$batch_size,
+history <- model_enc %>% fit_generator(
+  train_generator_5,
+  steps_per_epoch = train_generator_5$n/train_generator_5$batch_size,
   epochs = 20,
-  validation_data = validation_generator,
-  validation_steps = validation_generator$n/validation_generator$batch_size
+  validation_data = validation_generator_5,
+  validation_steps = validation_generator_5$n/validation_generator_5$batch_size
 )
 ```
+
+
+
+```{r}
+library(randomForest)
+set.seed(1)
+
+
+pixels <- model_enc(train_generator_5)
+
+rf.model = randomForest(pixels~., data = train_generator_5)
+
+yhat.rf = predict(rf.boston,newdata=valid_datagen_5)
+mean((yhat.rf-boston.test)^2)
+importance(rf.boston)
+varImpPlot(rf.boston)
+```
+
+
+## Statistical test for the best z layer
+
+```{r}
+fit <- lmFit()
+fit <- 
+```
+
+
+
+## Volcano Plot
+
+```{r}
+BiocManager::install("limma")
+library(limma)
+
+volcanoplot(fit, coef = "nodes")
+```
+
+### Example
+
+#load package
+library("limma")
+
+#define phenotype/experimental conditions for samples
+group = rep(c("Treatment","Control"), 
+c(number_of_treated_samples,number_of_controls))
+design = model.matrix(~group);
+colnames(design) = c("Control","TreatmentvsControl")
+
+#fit empirical Bayes model
+fit <- lmFit(NormalisedExpression, design)
+fit <- eBayes(fit)
+
+#summarise significant results
+tt <- topTable(fit, coef="TreatmentvsControl",
+                adjust="BH",n=nrow(NormalisedExpression))
+
+#plot results
+volcanoplot(fit, coef="TreatmentvsControl")
+
+
+
+
+
+
+
 
