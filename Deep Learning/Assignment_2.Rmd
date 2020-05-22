@@ -663,6 +663,11 @@ model_enc %>%
   layer_dense(units = 32, activation = "relu") 
 summary(model_enc)
 
+input_dim <- c(64,64,1)
+model_enc1 <- keras_model_sequential()
+model_enc1 %>%
+  layer_dense(units = 128, activation = "relu", input_shape =  input_dim)
+
 #### Decoder 
 
 model_dec <- keras_model_sequential() 
@@ -716,6 +721,7 @@ library(randomForest)
 set.seed(1)
 
 
+pixels <- model_enc1(train_generator_5)
 pixels <- model_enc(train_generator_5)
 
 rf.model = randomForest(pixels~., data = train_generator_5)
