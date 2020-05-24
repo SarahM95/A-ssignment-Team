@@ -1,5 +1,6 @@
 ---
 title: "Deep Learning"
+author: "Gregoire Gasparini, Aurora Hofman, Beatriu Tort"
 date: '`r format(Sys.Date(),"%e de %B, %Y")`'
 output: 
   html_document:
