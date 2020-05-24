@@ -1,7 +1,15 @@
 ---
-title: "Assignment_2"
-output: html_document
+title: "Deep Learning"
+date: '`r format(Sys.Date(),"%e de %B, %Y")`'
+output: 
+  html_document:
+    df_print: paged
+    toc: yes
+params:
+  myDescription: "In this work we are going to classify some images in health or sick. The dataset we are going to use consists of 350 normal chest x-ray and 350 effusion x-ray, taken and selected from the public NIH ChestXray14 dataset (https://www.nih.gov/news-events/news-releases/nih-clinical-center-provides-one-largest-publicly-available-chest)."
 ---
+
+\newpage
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
@@ -11,6 +19,8 @@ knitr::opts_chunk$set(echo = TRUE)
 library(keras)
 library(tensorflow)
 ```
+
+`r params$myDescription`. 
 
 # Split the data 
 
